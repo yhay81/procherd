@@ -1,17 +1,17 @@
-# RunCradle
+# ProcHerd
 
 Durable local process control for software agents.
 
 > Status: concept stage. This repository currently contains no process supervisor.
 
-RunCradle gives one-off commands durable IDs, bounded logs, readiness checks, and leased resources. A process remains discoverable after the shell or agent turn that launched it has ended.
+ProcHerd gives one-off commands durable IDs, bounded logs, readiness checks, and leased resources. A process remains discoverable after the shell or agent turn that launched it has ended.
 
 ```bash
-runcradle start --lease-port 1 -- npm run dev
-runcradle status run_01J...
-runcradle wait run_01J... --http-ready /health --timeout 60s
-runcradle logs run_01J... --since cursor_... --limit 50
-runcradle stop run_01J...
+procherd start --lease-port 1 -- npm run dev
+procherd status run_01J...
+procherd wait run_01J... --http-ready /health --timeout 60s
+procherd logs run_01J... --since cursor_... --limit 50
+procherd stop run_01J...
 ```
 
 ## Why

@@ -1,8 +1,8 @@
-# RunCradle concept
+# ProcHerd concept
 
 ## One-line thesis
 
-RunCradle gives software agents durable ownership of local processes, logs,
+ProcHerd gives software agents durable ownership of local processes, logs,
 readiness, and leased resources without requiring a terminal session to remain
 alive.
 
@@ -46,14 +46,14 @@ tree.**
 ## Proposed command contract
 
 ```text
-runcradle schema --brief --format json
-runcradle start --spec run.json --format json
-runcradle status <run-id> --format json
-runcradle wait <run-id> --for ready --timeout 30s --format json
-runcradle logs <run-id> --after <cursor> --limit 200 --format ndjson
-runcradle stop <run-id> --grace 5s --format json
-runcradle leases <run-id> --format json
-runcradle gc --dry-run --format json
+procherd schema --brief --format json
+procherd start --spec run.json --format json
+procherd status <run-id> --format json
+procherd wait <run-id> --for ready --timeout 30s --format json
+procherd logs <run-id> --after <cursor> --limit 200 --format ndjson
+procherd stop <run-id> --grace 5s --format json
+procherd leases <run-id> --format json
+procherd gc --dry-run --format json
 ```
 
 The process argument vector is an array in the spec, never a shell string unless
@@ -132,7 +132,7 @@ Version 0.1 will support:
 
 ## Differentiation and defensibility
 
-RunCradle focuses on the lifecycle gap between a subprocess library and a
+ProcHerd focuses on the lifecycle gap between a subprocess library and a
 distributed scheduler. Its agent-native contract combines durable IDs, ownership,
 readiness, leased resources, and bounded logs. Cross-platform process correctness
 and integrations with agent frameworks can become a meaningful moat.
@@ -154,5 +154,5 @@ and integrations with agent frameworks can become a meaningful moat.
 - Some commands daemonize or deliberately escape process groups.
 - Resource limiting without containers is platform-dependent.
 
-RunCradle must expose capability differences rather than pretending every
+ProcHerd must expose capability differences rather than pretending every
 platform can enforce the same guarantees.
