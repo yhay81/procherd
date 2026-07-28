@@ -58,25 +58,12 @@ pub fn launch(run_dir: &Path) -> Result<(), AppError> {
     }
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
-        use windows_sys::Win32::System::Threading::{
-            CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW, DETACHED_PROCESS,
-        };
-        std::process::Command::new(executable)
-            .arg("__supervise")
-            .arg("--run-dir")
-            .arg(run_dir)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW | DETACHED_PROCESS)
-            .spawn()
-            .map_err(|error| {
-                AppError::operational(
-                    "supervisor_launch",
-                    format!("cannot start detached supervisor: {error}"),
-                )
-            })?;
+        crate::windows_detach::spawn_supervisor(&executable, run_dir).map_err(|error| {
+            AppError::operational(
+                "supervisor_launch",
+                format!("cannot start detached supervisor: {error}"),
+            )
+        })?;
     }
     Ok(())
 }

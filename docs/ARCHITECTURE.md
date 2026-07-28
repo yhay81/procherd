@@ -43,7 +43,11 @@ requested grace period, then force-kills the group if needed.
 
 On Windows, the detached supervisor assigns the child to a Job Object whose
 close/termination semantics cover descendants. Windows 0.1 cleanup is forced;
-there is no portable graceful console signal guarantee.
+there is no portable graceful console signal guarantee. The supervisor is
+created with Win32 handle inheritance disabled so that a long-lived run cannot
+retain stdout or stderr capture pipes owned by the foreground caller. This
+small Win32 FFI boundary is the only audited exception to the crate-wide
+`unsafe_code` deny lint.
 
 Supervisor-side ownership is RAII-backed: unexpected supervisor I/O failures
 trigger best-effort tree termination before the supervisor exits.

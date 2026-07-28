@@ -7,4 +7,8 @@ pub mod readiness;
 pub mod store;
 pub mod supervisor;
 
+#[cfg(windows)]
+#[allow(unsafe_code)]
+mod windows_detach;
+
 pub use cli::run;
