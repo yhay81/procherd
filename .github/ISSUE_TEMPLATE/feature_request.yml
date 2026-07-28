@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a scoped process-lifecycle or integration improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Describe the local process workflow and why the current contract is insufficient.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Smallest complete scope
+      description: Include expected commands, structured fields, and explicit non-goals.
+    validations:
+      required: true
+  - type: textarea
+    id: guarantees
+    attributes:
+      label: Guarantees and platform differences
+      description: Describe cleanup, crash, race, and Linux/macOS/Windows implications.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Security and compatibility risks
+      description: Could this expose data, execute a shell, probe remotely, leak a process, reuse a resource, or break a published contract?
+    validations:
+      required: true
