@@ -64,4 +64,5 @@ attestations. See [RELEASING.md](RELEASING.md).
 Pull requests are checked with GitHub Dependency Review and fail when they
 introduce a dependency with a known moderate-or-higher-severity vulnerability.
 A weekly OpenSSF Scorecard analysis publishes authenticated results and uploads
-SARIF findings to GitHub code scanning.
+SARIF findings to GitHub code scanning. CodeQL default setup analyzes Rust and
+workflow sources with extended security queries.
