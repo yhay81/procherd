@@ -13,6 +13,8 @@ semantic versioning.
 - Added a monthly maintainer-continuity drill that recovers the public Git
   mirror and verifies signed tags, release checksums, build/SBOM attestations,
   and the released native binary without repository write access.
+- Added pull-request dependency review and weekly OpenSSF Scorecard analysis,
+  with every action pinned to an immutable commit SHA.
 
 ## [0.2.0] - 2026-07-29
 
