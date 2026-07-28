@@ -68,7 +68,16 @@ GNUPGHOME="$gnupg_dir" gpg --batch --with-colons --fingerprint |
 release_tags=$(git --git-dir="$mirror" tag --list "v*" --sort=version:refname)
 [ -n "$release_tags" ] || fail "no release tags were found"
 for tag in $release_tags; do
-  GNUPGHOME="$gnupg_dir" git --git-dir="$mirror" verify-tag "$tag"
+  if ! verification=$(
+    GNUPGHOME="$gnupg_dir" git --git-dir="$mirror" verify-tag --raw "$tag" 2>&1
+  ); then
+    printf '%s\n' "$verification" >&2
+    fail "tag signature verification failed: $tag"
+  fi
+  printf '%s\n' "$verification"
+  printf '%s\n' "$verification" |
+    grep -F "[GNUPG:] VALIDSIG $expected_signing_fingerprint " >/dev/null ||
+    fail "tag was not signed by the pinned signing subkey: $tag"
 done
 
 release_tag=$(gh release view --repo "$repository" --json tagName --jq ".tagName")
@@ -76,6 +85,8 @@ case "$release_tag" in
   v[0-9]*.[0-9]*.[0-9]*) ;;
   *) fail "latest release tag is not semantic: $release_tag" ;;
 esac
+git --git-dir="$mirror" show-ref --verify --quiet "refs/tags/$release_tag" ||
+  fail "latest release tag is absent from the recovered mirror"
 
 mkdir "$release_dir" "$extract_dir"
 gh release download "$release_tag" --repo "$repository" --dir "$release_dir"
