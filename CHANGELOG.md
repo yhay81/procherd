@@ -10,6 +10,9 @@ semantic versioning.
 
 - Added a digest-pinned v0.1 golden run store with exact JSON/NDJSON round
   trips, full read-only lifecycle replay, and twelve declared corruption cases.
+- Added deterministic start-to-running and 1,000-run-store benchmarks with
+  weekly raw latency, output-size, controller-memory, and supervisor-memory
+  artifacts.
 
 ### Changed
 

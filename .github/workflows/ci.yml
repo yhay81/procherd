@@ -50,6 +50,19 @@ jobs:
               f"{len(ndjson_files)} NDJSON contract fixtures"
           )
           PY
+      - name: Benchmark harness
+        shell: bash
+        run: |
+          bash -n benchmarks/run.sh
+          fixture="${RUNNER_TEMP}/procherd-benchmark-smoke"
+          python3 benchmarks/generate_store.py \
+            --runs 3 --output "${fixture}" >"${fixture}.json"
+          jq -e '
+            .schema_version == "procherd.benchmark-store.v1"
+            and .runs == 3
+            and (.content_sha256 | length == 64)
+          ' "${fixture}.json" >/dev/null
+          test "$(find "${fixture}" -name state.json | wc -l)" -eq 3
       - name: Machine contracts and completions
         shell: bash
         run: |

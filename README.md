@@ -149,6 +149,12 @@ published v0.1 terminal run store byte-for-byte. CI reopens it through every
 read-only lifecycle view and rejects declared state and log corruptions on all
 supported operating systems.
 
+Performance observations use a generated 1,000-run terminal store and a
+minimal start-to-running lifecycle. The
+[benchmark methodology](benchmarks/README.md) documents measurement
+boundaries, supervisor memory sampling, raw artifacts, and the distinction
+between the current baseline and future v1.0 regression thresholds.
+
 ## State and cleanup
 
 The default state root is the platform user data directory:
