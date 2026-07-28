@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod error;
+mod hex;
 pub mod leases;
 pub mod logs;
 pub mod model;

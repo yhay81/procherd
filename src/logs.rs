@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     error::AppError,
+    hex::encode_lower,
     model::{
         LOG_RECORD_SCHEMA_VERSION, LogEncoding, LogRecord, LogStream, LogSummary, LogsResult,
         RunState,
@@ -129,8 +130,8 @@ impl LogWriter {
     pub fn finish(mut self) -> Result<LogSummary, AppError> {
         self.writer.flush()?;
         self.writer.get_ref().sync_all()?;
-        self.summary.stdout_sha256 = Some(format!("{:x}", self.stdout_digest.finalize()));
-        self.summary.stderr_sha256 = Some(format!("{:x}", self.stderr_digest.finalize()));
+        self.summary.stdout_sha256 = Some(encode_lower(self.stdout_digest.finalize()));
+        self.summary.stderr_sha256 = Some(encode_lower(self.stderr_digest.finalize()));
         Ok(self.summary)
     }
 }
