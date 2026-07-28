@@ -48,6 +48,8 @@ service-level agreement.
   and 3xx, sends no credentials, and has bounded connection/read/write times.
 - Port leases avoid collisions among cooperating ProcHerd runs but cannot
   prevent an unrelated process from binding during the recorded handoff gap.
+- Run IDs and lease names loaded from durable state are revalidated and
+  reconstructed as canonical path components before filesystem access.
 - GC is dry-run by default and deletes only revalidated terminal, inactive,
   canonical run directories. State symlinks are rejected on read.
 - After a supervisor or machine crash, a child may outlive accurate durable
