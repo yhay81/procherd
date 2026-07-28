@@ -1,0 +1,49 @@
+name: ClusterFuzzLite PR fuzzing
+
+on:
+  pull_request:
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!docs/**"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  PRFuzzing:
+    name: Fuzz changed code
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read # Fetch prior ClusterFuzzLite builds and corpora.
+      contents: read
+      security-events: write # Upload ClusterFuzzLite SARIF findings.
+    steps:
+      - name: Build fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: rust
+          sanitizer: address
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run fuzzers
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 300
+          language: rust
+          mode: code-change
+          sanitizer: address
+          output-sarif: true
+      - name: Upload SARIF
+        if: ${{ always() && hashFiles('cifuzz-sarif/results.sarif') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          sarif_file: cifuzz-sarif/results.sarif
+          category: clusterfuzzlite-address

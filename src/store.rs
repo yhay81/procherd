@@ -12,7 +12,8 @@ use ulid::Ulid;
 
 use crate::{
     error::AppError,
-    model::{RunState, StopRequest, SupervisorSpec},
+    leases::validate_requests,
+    model::{RUN_SCHEMA_VERSION, RunState, StopRequest, SupervisorSpec},
 };
 
 const DOCUMENT_LIMIT: u64 = 4 * 1024 * 1024;
@@ -87,6 +88,7 @@ impl Store {
     pub fn read_state(&self, run_id: &str) -> Result<RunState, AppError> {
         let run_dir = self.run_dir(run_id)?;
         let state: RunState = read_json(&run_dir.join("state.json"))?;
+        validate_persisted_run_state(&state)?;
         if state.run_id != run_id {
             return Err(AppError::integrity(format!(
                 "state run ID {} does not match directory {run_id}",
@@ -176,6 +178,58 @@ pub fn now_ms() -> u64 {
 
 pub fn validate_run_id(run_id: &str) -> Result<(), AppError> {
     canonical_run_id(run_id).map(drop)
+}
+
+/// Validates identifiers from a deserialized run state before any of them can
+/// participate in filesystem or registry operations.
+///
+/// # Errors
+///
+/// Returns an integrity error for an unsupported schema, malformed run ID, or
+/// invalid or duplicate persisted lease names.
+pub fn validate_persisted_run_state(state: &RunState) -> Result<(), AppError> {
+    if state.schema_version != RUN_SCHEMA_VERSION {
+        return Err(AppError::integrity(format!(
+            "unsupported run state schema {}",
+            state.schema_version
+        )));
+    }
+    canonical_run_id(&state.run_id)
+        .map_err(|_| AppError::integrity("run state contains an invalid run ID"))?;
+    validate_requests(
+        state
+            .leases
+            .ports
+            .iter()
+            .map(|lease| lease.name.clone())
+            .collect(),
+        state
+            .leases
+            .temp_directories
+            .iter()
+            .map(|lease| lease.name.clone())
+            .collect(),
+    )
+    .map_err(|error| AppError::integrity(format!("run state contains invalid leases: {error}")))?;
+    Ok(())
+}
+
+/// Parses and validates one bounded persisted run-state document.
+///
+/// # Errors
+///
+/// Returns an integrity error when the document is oversized, malformed, or
+/// contains unsafe persisted identifiers.
+pub fn parse_run_state_document(bytes: &[u8]) -> Result<RunState, AppError> {
+    if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > DOCUMENT_LIMIT {
+        return Err(AppError::integrity(format!(
+            "run state document exceeds {DOCUMENT_LIMIT} bytes"
+        )));
+    }
+    let state: RunState = serde_json::from_slice(bytes)
+        .map_err(|error| AppError::integrity(format!("invalid run state JSON: {error}")))?;
+    validate_persisted_run_state(&state)?;
+    Ok(state)
 }
 
 pub(crate) fn canonical_run_id(run_id: &str) -> Result<String, AppError> {

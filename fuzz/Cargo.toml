@@ -1,0 +1,19 @@
+[package]
+name = "procherd-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+procherd = { path = ".." }
+
+[[bin]]
+name = "persisted_run_state"
+path = "fuzz_targets/persisted_run_state.rs"
+test = false
+doc = false
+bench = false

@@ -1,0 +1,36 @@
+name: ClusterFuzzLite corpus pruning
+
+on:
+  schedule:
+    - cron: "47 4 * * 0"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: clusterfuzzlite-prune
+  cancel-in-progress: false
+
+jobs:
+  Pruning:
+    name: Prune main corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read # Fetch and replace ClusterFuzzLite corpus artifacts.
+      contents: read
+    steps:
+      - name: Build fuzzers
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: rust
+          sanitizer: address
+      - name: Prune corpus
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          fuzz-seconds: 600
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          language: rust
+          mode: prune
+          sanitizer: address

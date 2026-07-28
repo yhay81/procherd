@@ -17,6 +17,9 @@ semantic versioning.
   with every action pinned to an immutable commit SHA.
 - Enabled CodeQL default setup and restricted release and dependency-audit
   credentials to the minimum permissions required by each job.
+- Added production-path persisted run-state fuzzing with canonical identifier
+  and lease validation, five-minute pull-request checks, and weekly
+  ClusterFuzzLite AddressSanitizer batches.
 - Reconstruct canonical run IDs before path use and reject malformed persisted
   lease-registry identifiers before pruning or allocating resources.
 
