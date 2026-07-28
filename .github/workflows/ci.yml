@@ -93,6 +93,21 @@ jobs:
             timeout 45s cargo test --test cli --locked "${test_name}" -- \
               --exact --nocapture --test-threads=1
           done
+      - name: Capture bounded Windows failure diagnostics
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Process -Filter "Name = 'procherd.exe'" |
+            Select-Object ProcessId, ParentProcessId, CommandLine |
+            Format-List
+          Get-ChildItem -Path $env:TEMP -Filter state.json -File -Recurse `
+              -ErrorAction SilentlyContinue |
+            Where-Object FullName -Like '*run_*' |
+            Select-Object -First 100 |
+            ForEach-Object {
+              Write-Output "state document: $($_.FullName)"
+              Get-Content -Path $_.FullName
+            }
       - name: Build release binary
         run: cargo build --release --locked
 

@@ -19,14 +19,23 @@ fn binary() -> PathBuf {
 }
 
 fn invoke(state_dir: &Path, arguments: &[&str]) -> Output {
-    Command::new(binary())
+    let started = Instant::now();
+    eprintln!("invoke ProcHerd: {}", arguments.join(" "));
+    let output = Command::new(binary())
         .arg("--state-dir")
         .arg(state_dir)
         .arg("--format")
         .arg("json")
         .args(arguments)
         .output()
-        .expect("run procherd")
+        .expect("run procherd");
+    eprintln!(
+        "completed ProcHerd after {:?} with {:?}: {}",
+        started.elapsed(),
+        output.status.code(),
+        arguments.first().copied().unwrap_or("<none>")
+    );
+    output
 }
 
 fn parse_success<T: DeserializeOwned>(output: Output) -> T {
