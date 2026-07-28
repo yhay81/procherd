@@ -12,6 +12,15 @@ Run IDs are canonical uppercase ULIDs prefixed with `run_`. Cursors are
 monotonic unsigned integers scoped to one run; callers must treat them as
 opaque resume positions rather than byte offsets.
 
+Durable v1 run documents and log records use closed shapes. Readers reject
+unknown fields, unsupported schema identifiers, cross-run identity, malformed
+Base64, byte-count mismatches, non-monotonic cursors, cursors outside the
+durable summary, and incomplete terminal records as integrity failures.
+Fields explicitly documented with defaults remain readable when omitted. The
+versioned fixtures and declared mutations in
+[`tests/fixtures/contracts/`](../tests/fixtures/contracts/README.md) exercise
+these rules without starting a child process.
+
 ## Lifecycle
 
 `start` returns after the child has been spawned or after a terminal startup

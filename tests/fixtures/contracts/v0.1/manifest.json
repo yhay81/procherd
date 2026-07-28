@@ -1,0 +1,126 @@
+{
+  "schema_version": "procherd.store-corpus/v1",
+  "license": "MIT",
+  "store_version": "0.1",
+  "run_id": "run_01J00000000000000000000000",
+  "files": [
+    {
+      "path": "run_01J00000000000000000000000/state.json",
+      "sha256": "b0e2df81aff3c475448f32e171ee1d9bc5ce2555188577a77f7698824fd5d0e6"
+    },
+    {
+      "path": "run_01J00000000000000000000000/logs.ndjson",
+      "sha256": "5e8797e9feb6bfff7cbefbc5be907e55cdd91ca14ab8a1c16d7736f52c71b86a"
+    },
+    {
+      "path": "run_01J00000000000000000000000/owner.token",
+      "sha256": "44c2336fedab8ff6a85c74c2b94165377b0981f526adb9487895ca6314165e86"
+    }
+  ],
+  "rejections": [
+    {
+      "id": "state_unknown_field",
+      "file": "state.json",
+      "operation": "add",
+      "pointer": "/unexpected",
+      "value": true,
+      "command": "status",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "state_unknown_nested_field",
+      "file": "state.json",
+      "operation": "add",
+      "pointer": "/logs/unexpected",
+      "value": true,
+      "command": "status",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "state_unsupported_schema",
+      "file": "state.json",
+      "operation": "replace",
+      "pointer": "/schema_version",
+      "value": "procherd.run.v99",
+      "command": "status",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "state_cross_run_identity",
+      "file": "state.json",
+      "operation": "replace",
+      "pointer": "/run_id",
+      "value": "run_01J00000000000000000000001",
+      "command": "status",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "log_unknown_field",
+      "file": "logs.ndjson",
+      "operation": "add",
+      "pointer": "/unexpected",
+      "value": true,
+      "command": "logs",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "log_unsupported_schema",
+      "file": "logs.ndjson",
+      "operation": "replace",
+      "pointer": "/schema_version",
+      "value": "procherd.log-record.v99",
+      "command": "logs",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "log_invalid_base64",
+      "file": "logs.ndjson",
+      "operation": "replace",
+      "pointer": "/data",
+      "value": "***",
+      "command": "logs",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "log_byte_count_mismatch",
+      "file": "logs.ndjson",
+      "operation": "replace",
+      "pointer": "/byte_count",
+      "value": 7,
+      "command": "logs",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "log_zero_cursor",
+      "file": "logs.ndjson",
+      "operation": "replace",
+      "pointer": "/cursor",
+      "value": 0,
+      "command": "logs",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "log_cursor_outside_summary",
+      "file": "logs.ndjson",
+      "operation": "replace",
+      "pointer": "/cursor",
+      "value": 2,
+      "command": "logs",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "log_duplicate_cursor",
+      "file": "logs.ndjson",
+      "operation": "append_duplicate_record",
+      "command": "logs",
+      "expected_kind": "integrity"
+    },
+    {
+      "id": "terminal_log_incomplete",
+      "file": "logs.ndjson",
+      "operation": "remove_trailing_newline",
+      "command": "logs",
+      "expected_kind": "integrity"
+    }
+  ]
+}

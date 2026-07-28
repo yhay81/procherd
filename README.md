@@ -143,6 +143,12 @@ Stable exit-code classes are:
 See [docs/CONTRACT.md](docs/CONTRACT.md) for lifecycle and compatibility
 details.
 
+The checked-in
+[store compatibility corpus](tests/fixtures/contracts/README.md) freezes a
+published v0.1 terminal run store byte-for-byte. CI reopens it through every
+read-only lifecycle view and rejects declared state and log corruptions on all
+supported operating systems.
+
 ## State and cleanup
 
 The default state root is the platform user data directory:

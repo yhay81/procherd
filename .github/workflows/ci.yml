@@ -26,6 +26,30 @@ jobs:
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: Package manifest
         run: cargo package --locked --allow-dirty
+      - name: Store contract fixtures
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("tests/fixtures/contracts")
+          json_files = sorted(root.rglob("*.json"))
+          ndjson_files = sorted(root.rglob("*.ndjson"))
+          if not json_files or not ndjson_files:
+              raise SystemExit("store contract corpus is incomplete")
+          for fixture in json_files:
+              with fixture.open(encoding="utf-8") as handle:
+                  json.load(handle)
+          for fixture in ndjson_files:
+              with fixture.open(encoding="utf-8") as handle:
+                  records = [json.loads(line) for line in handle if line.strip()]
+              if not records:
+                  raise SystemExit(f"{fixture} has no records")
+          print(
+              f"validated {len(json_files)} JSON and "
+              f"{len(ndjson_files)} NDJSON contract fixtures"
+          )
+          PY
       - name: Machine contracts and completions
         shell: bash
         run: |
@@ -83,6 +107,8 @@ jobs:
         run: |
           cargo test --lib --locked
           cargo test --bin procherd --locked
+          timeout 45s cargo test --test store_compatibility --locked -- \
+            --nocapture --test-threads=1
           mapfile -t tests < <(
             cargo test --test cli --locked -- --list \
               | sed -n 's/: test$//p'

@@ -32,6 +32,7 @@ impl RunStatus {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CommandSpec {
     pub program: String,
     pub args: Vec<String>,
@@ -40,6 +41,7 @@ pub struct CommandSpec {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct EnvironmentPolicy {
     pub mode: EnvironmentMode,
     pub inherited_name_count: usize,
@@ -55,6 +57,7 @@ pub enum EnvironmentMode {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ProcessInfo {
     pub supervisor_pid: Option<u32>,
     pub process_pid: Option<u32>,
@@ -69,6 +72,7 @@ pub enum TreeControl {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExitInfo {
     pub code: Option<i32>,
     pub signal: Option<i32>,
@@ -87,6 +91,7 @@ pub enum ExitReason {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CleanupInfo {
     pub requested_at_ms: Option<u64>,
     pub completed_at_ms: Option<u64>,
@@ -106,6 +111,7 @@ impl CleanupInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LogSummary {
     pub next_cursor: u64,
     pub captured_bytes: u64,
@@ -129,6 +135,7 @@ impl LogSummary {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunState {
     pub schema_version: String,
     pub run_id: String,
@@ -148,12 +155,14 @@ pub struct RunState {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct FailureInfo {
     pub kind: String,
     pub message: String,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReadinessState {
     pub status: ReadinessStatus,
     pub timeout_ms: u64,
@@ -201,6 +210,7 @@ pub enum ReadinessStatus {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReadinessCheck {
     pub id: String,
     pub condition: ReadinessCondition,
@@ -209,6 +219,7 @@ pub struct ReadinessCheck {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ReadinessCondition {
     Tcp { address: String },
@@ -219,6 +230,7 @@ pub enum ReadinessCondition {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LeaseState {
     pub ports: Vec<PortLease>,
     pub temp_directories: Vec<TempDirectoryLease>,
@@ -255,6 +267,7 @@ impl LeaseState {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct PortLease {
     pub name: String,
     pub address: Option<String>,
@@ -273,6 +286,7 @@ pub enum PortLeaseGuarantee {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct TempDirectoryLease {
     pub name: String,
     pub path: Option<PathBuf>,
@@ -282,12 +296,14 @@ pub struct TempDirectoryLease {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LeaseRequests {
     pub port_names: Vec<String>,
     pub temp_directory_names: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunLimits {
     pub max_runtime_ms: Option<u64>,
     pub runtime_deadline_at_ms: Option<u64>,
@@ -338,6 +354,7 @@ impl RunView {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct SupervisorSpec {
     pub schema_version: String,
     pub run_id: String,
@@ -351,6 +368,7 @@ pub struct SupervisorSpec {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct StopRequest {
     pub schema_version: String,
     pub run_id: String,
@@ -367,6 +385,7 @@ pub enum LogStream {
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LogRecord {
     pub schema_version: String,
     pub cursor: u64,
