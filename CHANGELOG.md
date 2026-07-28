@@ -10,6 +10,9 @@ semantic versioning.
 
 - Added a privacy-conscious adoption report form that captures evaluation,
   repeat-use, limitations, evidence, and public-listing permission.
+- Added a monthly maintainer-continuity drill that recovers the public Git
+  mirror and verifies signed tags, release checksums, build/SBOM attestations,
+  and the released native binary without repository write access.
 
 ## [0.2.0] - 2026-07-29
 
