@@ -10,6 +10,9 @@ semantic versioning.
 
 - Upgraded `sha2` to 0.11 and centralized lowercase hexadecimal encoding while
   preserving owner-token and digest wire formats.
+- Defined measurable v1.0 compatibility, lifecycle and lease correctness,
+  security, performance, delivery, maintenance, contribution, and
+  repeat-adoption gates.
 
 ## [0.1.0] - 2026-07-28
 
