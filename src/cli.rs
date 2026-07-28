@@ -563,7 +563,7 @@ fn start(store: &Store, format: OutputFormat, options: StartCommand) -> Result<(
                     format!("run {run_id} failed to start: {detail}"),
                 ));
             }
-            if !active {
+            if !active && !state.status.is_terminal() {
                 return Err(AppError::operational(
                     "supervisor_exit",
                     format!("run {run_id} supervisor exited during startup"),

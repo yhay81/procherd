@@ -66,6 +66,21 @@ fn every_public_result_contract_has_a_json_schema() {
 }
 
 #[test]
+fn fast_terminal_starts_settle_as_success_instead_of_supervisor_failure() {
+    let temp = TempDir::new().unwrap();
+    for _ in 0..10 {
+        let start = start_fixture(temp.path(), &["emit"]);
+        let run_id = &start.run.state.run_id;
+        let finished: WaitResult = parse_success(invoke(
+            temp.path(),
+            &["wait", run_id, "--for", "exit", "--timeout", "5s"],
+        ));
+        assert_eq!(finished.run.state.status, RunStatus::Exited);
+        assert!(!finished.run.supervisor_active);
+    }
+}
+
+#[test]
 fn detached_run_can_be_reacquired_and_logs_are_cursor_bound() {
     let temp = TempDir::new().unwrap();
     let start = start_fixture(temp.path(), &["emit", "--chunks", "3", "--delay-ms", "75"]);
