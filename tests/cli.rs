@@ -92,7 +92,9 @@ fn fast_terminal_starts_settle_as_success_instead_of_supervisor_failure() {
 #[test]
 fn detached_run_can_be_reacquired_and_logs_are_cursor_bound() {
     let temp = TempDir::new().unwrap();
-    let start = start_fixture(temp.path(), &["emit", "--chunks", "3", "--delay-ms", "75"]);
+    // A pipe may coalesce separate writes into one read. Emit more than the
+    // supervisor's 8 KiB read buffer so pagination always spans log records.
+    let start = start_fixture(temp.path(), &["emit", "--chunks", "1000"]);
     let run_id = &start.run.state.run_id;
     assert!(matches!(
         start.run.state.status,
