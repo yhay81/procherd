@@ -6,6 +6,14 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-29
+
+### Compatibility
+
+- Preserved the public v0.1 CLI, lifecycle, store, log, and owner-token
+  contracts. The v0.2 reader reopens the digest-pinned v0.1 run store
+  byte-for-byte; no migration is required.
+
 ### Added
 
 - Added a digest-pinned v0.1 golden run store with exact JSON/NDJSON round
@@ -43,5 +51,6 @@ semantic versioning.
   classes, versioned JSON results, JSON Schemas, and shell completions.
 - Cross-platform lifecycle, failure-path, lease, readiness, and GC tests.
 
-[Unreleased]: https://github.com/yhay81/procherd/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/yhay81/procherd/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/yhay81/procherd/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yhay81/procherd/releases/tag/v0.1.0

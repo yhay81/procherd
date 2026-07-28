@@ -2,7 +2,7 @@
 
 Durable local process control for software agents.
 
-> Status: 0.1 release candidate. The complete local lifecycle is implemented
+> Status: 0.2 release. The complete local lifecycle is implemented
 > and tested on Linux, macOS, and Windows.
 
 ProcHerd starts a command under a detached per-run supervisor and returns a
