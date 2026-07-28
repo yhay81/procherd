@@ -6,6 +6,11 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Added a privacy-conscious adoption report form that captures evaluation,
+  repeat-use, limitations, evidence, and public-listing permission.
+
 ## [0.2.0] - 2026-07-29
 
 ### Compatibility
