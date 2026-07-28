@@ -459,7 +459,21 @@ fn lease_environment_is_delivered_and_registry_prevents_reuse() {
         .as_ref()
         .unwrap();
     let port_file = first_temp.join("port.txt");
-    wait_until(Duration::from_secs(5), || port_file.is_file());
+    if !condition_met_within(Duration::from_secs(5), || port_file.is_file()) {
+        let status = invoke(temp.path(), &["status", first_run_id]);
+        let logs = invoke(temp.path(), &["logs", first_run_id]);
+        let state = fs::read_to_string(temp.path().join(first_run_id).join("state.json"))
+            .unwrap_or_else(|error| format!("cannot read state: {error}"));
+        panic!(
+            "leased child did not create {}\nstatus stdout: {}\nstatus stderr: {}\nlogs stdout: {}\nlogs stderr: {}\nstate: {}",
+            port_file.display(),
+            String::from_utf8_lossy(&status.stdout),
+            String::from_utf8_lossy(&status.stderr),
+            String::from_utf8_lossy(&logs.stdout),
+            String::from_utf8_lossy(&logs.stderr),
+            state,
+        );
+    }
     assert_eq!(
         fs::read_to_string(&port_file).unwrap(),
         first_port.to_string()
@@ -633,12 +647,19 @@ fn supervisor_io_failure_kills_the_owned_process_tree() {
 }
 
 fn wait_until(timeout: Duration, mut condition: impl FnMut() -> bool) {
+    assert!(
+        condition_met_within(timeout, &mut condition),
+        "condition was not met within {timeout:?}"
+    );
+}
+
+fn condition_met_within(timeout: Duration, mut condition: impl FnMut() -> bool) -> bool {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
         if condition() {
-            return;
+            return true;
         }
         thread::sleep(Duration::from_millis(25));
     }
-    panic!("condition was not met within {timeout:?}");
+    false
 }

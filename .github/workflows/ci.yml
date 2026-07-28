@@ -88,11 +88,16 @@ jobs:
               | sed -n 's/: test$//p'
           )
           test "${#tests[@]}" -gt 0
+          failures=0
           for test_name in "${tests[@]}"; do
             printf 'running Windows CLI test: %s\n' "${test_name}"
-            timeout 45s cargo test --test cli --locked "${test_name}" -- \
-              --exact --nocapture --test-threads=1
+            if ! timeout 45s cargo test --test cli --locked "${test_name}" -- \
+                --exact --nocapture --test-threads=1; then
+              printf 'Windows CLI test failed: %s\n' "${test_name}"
+              failures=$((failures + 1))
+            fi
           done
+          test "${failures}" -eq 0
       - name: Capture bounded Windows failure diagnostics
         if: failure() && runner.os == 'Windows'
         shell: pwsh
