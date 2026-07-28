@@ -31,13 +31,18 @@ Only a release manager named in [GOVERNANCE.md](GOVERNANCE.md) may release.
 
 7. The release workflow creates native archives, completions, a CycloneDX
    SBOM, `SHA256SUMS`, a GitHub release, and GitHub/Sigstore build-provenance
-   and SBOM attestations.
+   and SBOM attestations. Each archive includes a downloadable
+   `.intoto.jsonl` provenance bundle for local verification.
 8. In a clean directory, verify downloads:
 
    ```bash
    sha256sum --check SHA256SUMS
    gh attestation verify procherd-v0.2.0-linux-x86_64.tar.gz \
      --repo yhay81/procherd
+   gh attestation verify procherd-v0.2.0-linux-x86_64.tar.gz \
+     --repo yhay81/procherd \
+     --bundle procherd-v0.2.0-linux-x86_64.tar.gz.intoto.jsonl \
+     --signer-workflow yhay81/procherd/.github/workflows/release.yml
    gh attestation verify procherd-v0.2.0-linux-x86_64.tar.gz \
      --repo yhay81/procherd \
      --predicate-type https://cyclonedx.org/bom
