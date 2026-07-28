@@ -7,8 +7,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   validate:
+    name: Validate release identity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,12 +34,13 @@ jobs:
           grep -F "## [${package_version}] - " CHANGELOG.md
 
   build:
+    name: Build ${{ matrix.platform }}
     needs: validate
     permissions:
       contents: read
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+      id-token: write # Mint a short-lived Sigstore signing certificate.
+      attestations: write # Publish signed provenance to GitHub.
+      artifact-metadata: write # Associate provenance with release archives.
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +62,9 @@ jobs:
             binary: procherd.exe
             archive: zip
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_BINARY: ${{ matrix.binary }}
+      RELEASE_PLATFORM: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,49 +81,62 @@ jobs:
       - name: Stage package
         shell: bash
         run: |
-          package="procherd-${GITHUB_REF_NAME}-${{ matrix.platform }}"
+          package="procherd-${GITHUB_REF_NAME}-${RELEASE_PLATFORM}"
           mkdir -p "dist/${package}/completions"
-          cp "target/release/${{ matrix.binary }}" "dist/${package}/"
+          cp "target/release/${RELEASE_BINARY}" "dist/${package}/"
           cp README.md CONCEPT.md ROADMAP.md CHANGELOG.md RELEASING.md SECURITY.md \
             CONTRIBUTING.md CODE_OF_CONDUCT.md GOVERNANCE.md SUPPORT.md \
             ADOPTERS.md LICENSE "dist/${package}/"
           cp -R docs benchmarks "dist/${package}/"
-          target/release/${{ matrix.binary }} completions bash > "dist/${package}/completions/procherd.bash"
-          target/release/${{ matrix.binary }} completions zsh > "dist/${package}/completions/_procherd"
-          target/release/${{ matrix.binary }} completions fish > "dist/${package}/completions/procherd.fish"
-          target/release/${{ matrix.binary }} completions powershell > "dist/${package}/completions/_procherd.ps1"
-          target/release/${{ matrix.binary }} --format json schema --document brief \
+          "target/release/${RELEASE_BINARY}" completions bash > "dist/${package}/completions/procherd.bash"
+          "target/release/${RELEASE_BINARY}" completions zsh > "dist/${package}/completions/_procherd"
+          "target/release/${RELEASE_BINARY}" completions fish > "dist/${package}/completions/procherd.fish"
+          "target/release/${RELEASE_BINARY}" completions powershell > "dist/${package}/completions/_procherd.ps1"
+          "target/release/${RELEASE_BINARY}" --format json schema --document brief \
             > "dist/${package}/contract.json"
       - name: Archive Unix package
         if: matrix.archive == 'tar.gz'
         shell: bash
         run: |
-          package="procherd-${GITHUB_REF_NAME}-${{ matrix.platform }}"
+          package="procherd-${GITHUB_REF_NAME}-${RELEASE_PLATFORM}"
           tar -C dist -czf "dist/${package}.tar.gz" "${package}"
       - name: Archive Windows package
         if: matrix.archive == 'zip'
         shell: pwsh
         run: |
-          $package = "procherd-$env:GITHUB_REF_NAME-${{ matrix.platform }}"
+          $package = "procherd-$env:GITHUB_REF_NAME-$env:RELEASE_PLATFORM"
           Compress-Archive -Path "dist/$package" -DestinationPath "dist/$package.zip"
       - name: Attest build provenance
+        id: provenance
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:
           subject-path: dist/*.${{ matrix.archive }}
+      - name: Stage offline provenance bundle
+        shell: bash
+        env:
+          ARCHIVE_EXTENSION: ${{ matrix.archive }}
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          archives=(dist/*."${ARCHIVE_EXTENSION}")
+          test "${#archives[@]}" -eq 1
+          cp "${PROVENANCE_BUNDLE}" "${archives[0]}.intoto.jsonl"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: procherd-${{ matrix.platform }}
-          path: dist/*.${{ matrix.archive }}
+          path: |
+            dist/*.${{ matrix.archive }}
+            dist/*.${{ matrix.archive }}.intoto.jsonl
 
   publish:
+    name: Publish immutable release
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: write
-      id-token: write
-      attestations: write
-      artifact-metadata: write
+      actions: read # Download archives from the trusted build matrix.
+      contents: write # Create the release and upload its immutable assets.
+      id-token: write # Mint a short-lived Sigstore signing certificate.
+      attestations: write # Publish the release SBOM attestation.
+      artifact-metadata: write # Associate the SBOM with release archives.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -139,7 +161,8 @@ jobs:
       - name: Generate SHA-256 checksums
         run: |
           cd artifacts
-          sha256sum ./*.tar.gz ./*.zip ./*.cdx.json > SHA256SUMS
+          sha256sum ./*.tar.gz ./*.zip ./*.cdx.json \
+            ./*.intoto.jsonl > SHA256SUMS
       - name: Attest release SBOM
         uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
         with:
