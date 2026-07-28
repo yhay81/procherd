@@ -140,7 +140,7 @@ mod tests {
         assert_eq!(quote(r#"a"b"#), r#""a\"b""#);
         assert_eq!(
             quote(r#"C:\directory with space\"#),
-            r#""C:\directory with space\\"#
+            r#""C:\directory with space\\""#
         );
     }
 }
