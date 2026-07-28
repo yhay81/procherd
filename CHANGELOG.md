@@ -6,8 +6,18 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-29
+
+### Compatibility
+
+- Preserved valid v0.2 CLI and persisted-state contracts and kept the
+  digest-pinned v0.1 corpus passing. Malformed persisted identifiers now fail
+  closed before path use.
+
 ### Added
 
+- Published downloadable SLSA provenance bundles beside every native archive
+  and covered those bundles with `SHA256SUMS`.
 - Added a privacy-conscious adoption report form that captures evaluation,
   repeat-use, limitations, evidence, and public-listing permission.
 - Added a monthly maintainer-continuity drill that recovers the public Git
