@@ -149,6 +149,7 @@ pub fn read_logs(
     let path = run_dir.join("logs.ndjson");
     let mut records = Vec::new();
     let mut has_more = false;
+    let mut previous_cursor = 0;
 
     match OpenOptions::new().read(true).open(&path) {
         Ok(file) => {
@@ -179,6 +180,28 @@ pub fn read_logs(
                     return Err(AppError::integrity(format!(
                         "unsupported log schema {}",
                         record.schema_version
+                    )));
+                }
+                if record.cursor == 0 || record.cursor <= previous_cursor {
+                    return Err(AppError::integrity(format!(
+                        "log cursor {} is not strictly monotonic",
+                        record.cursor
+                    )));
+                }
+                if record.cursor >= state.logs.next_cursor {
+                    return Err(AppError::integrity(format!(
+                        "log cursor {} is outside the durable summary",
+                        record.cursor
+                    )));
+                }
+                previous_cursor = record.cursor;
+                let decoded = decode_record(&record)?;
+                if record.byte_count == 0
+                    || u64::try_from(decoded.len()).unwrap_or(u64::MAX) != record.byte_count
+                {
+                    return Err(AppError::integrity(format!(
+                        "log cursor {} byte count does not match its decoded data",
+                        record.cursor
                     )));
                 }
                 if record.cursor <= after_cursor

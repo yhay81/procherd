@@ -1,0 +1,2 @@
+# Store compatibility evidence is byte-addressed. Preserve LF on every host.
+tests/fixtures/contracts/** text eol=lf

@@ -1,0 +1,67 @@
+{
+  "schema_version": "procherd.run.v1",
+  "run_id": "run_01J00000000000000000000000",
+  "status": "exited",
+  "created_at_ms": 1000,
+  "updated_at_ms": 1200,
+  "command": {
+    "program": "fixture-program",
+    "args": [
+      "--mode",
+      "golden"
+    ],
+    "working_directory": ".",
+    "environment": {
+      "mode": "inherit",
+      "inherited_name_count": 0,
+      "inherited_names_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "injected_names": []
+    }
+  },
+  "process": {
+    "supervisor_pid": 100,
+    "process_pid": 101,
+    "tree_control": "unix_process_group"
+  },
+  "exit": {
+    "code": 0,
+    "signal": null,
+    "reason": "process_exited",
+    "finished_at_ms": 1200
+  },
+  "failure": null,
+  "readiness": {
+    "status": "not_configured",
+    "timeout_ms": 30000,
+    "deadline_at_ms": null,
+    "ready_at_ms": null,
+    "failure_reason": null,
+    "checks": []
+  },
+  "leases": {
+    "ports": [],
+    "temp_directories": []
+  },
+  "limits": {
+    "max_runtime_ms": null,
+    "runtime_deadline_at_ms": null,
+    "runtime_grace_ms": 5000,
+    "runtime_limit_triggered_at_ms": null
+  },
+  "cleanup": {
+    "requested_at_ms": null,
+    "completed_at_ms": 1200,
+    "grace_ms": null,
+    "graceful_signal_supported": true,
+    "force_used": false,
+    "descendant_cleanup_triggered": false
+  },
+  "logs": {
+    "next_cursor": 2,
+    "captured_bytes": 6,
+    "dropped_bytes": 0,
+    "max_bytes": 1024,
+    "stdout_sha256": "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -6,10 +6,18 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Added a digest-pinned v0.1 golden run store with exact JSON/NDJSON round
+  trips, full read-only lifecycle replay, and twelve declared corruption cases.
+
 ### Changed
 
 - Upgraded `sha2` to 0.11 and centralized lowercase hexadecimal encoding while
   preserving owner-token and digest wire formats.
+- Durable state, nested store documents, and log records now reject unknown
+  fields; log reads also validate Base64, byte counts, monotonic cursors, and
+  cursor bounds before returning machine output.
 - Defined measurable v1.0 compatibility, lifecycle and lease correctness,
   security, performance, delivery, maintenance, contribution, and
   repeat-adoption gates.
