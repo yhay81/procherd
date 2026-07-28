@@ -20,6 +20,7 @@ use ulid::Ulid;
 
 use crate::{
     error::{AppError, ErrorDocument},
+    hex::encode_lower,
     leases::validate_requests,
     logs::{decode_record, read_logs},
     model::{
@@ -1057,7 +1058,7 @@ fn owner_token() -> Result<String, AppError> {
             format!("cannot create run owner token: {error}"),
         )
     })?;
-    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+    Ok(encode_lower(bytes))
 }
 
 fn environment_names_digest(names: &[String]) -> String {
@@ -1066,7 +1067,7 @@ fn environment_names_digest(names: &[String]) -> String {
         hasher.update(name.as_bytes());
         hasher.update([0]);
     }
-    format!("{:x}", hasher.finalize())
+    encode_lower(hasher.finalize())
 }
 
 pub fn parse_duration(value: &str) -> Result<Duration, AppError> {
