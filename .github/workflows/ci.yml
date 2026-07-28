@@ -107,6 +107,8 @@ jobs:
         run: |
           cargo test --lib --locked
           cargo test --bin procherd --locked
+          timeout 45s cargo test --test store_compatibility --locked -- \
+            --nocapture --test-threads=1
           mapfile -t tests < <(
             cargo test --test cli --locked -- --list \
               | sed -n 's/: test$//p'
