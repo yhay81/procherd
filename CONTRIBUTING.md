@@ -24,6 +24,10 @@ cargo test --all-targets --locked
 Process-tree behavior differs by operating system. Cross-platform lifecycle
 changes must be exercised in GitHub Actions, not inferred from one host.
 
+Persisted run-state parsing is continuously fuzzed. See
+[FUZZING.md](FUZZING.md) for the reproducible local command and crash-handling
+rules.
+
 ## Making a change
 
 1. Open an issue first for a schema, lifecycle, state-layout, security-boundary,

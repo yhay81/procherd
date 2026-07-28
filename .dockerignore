@@ -1,0 +1,8 @@
+.git
+site
+node_modules
+target
+fuzz/target
+fuzz/artifacts
+fuzz/corpus
+fuzz/coverage
