@@ -387,18 +387,37 @@ fn replace_placeholders(
     temp_directories: &BTreeMap<String, String>,
 ) -> Result<String, AppError> {
     let mut result = value.to_owned();
+    let contains_temp_placeholder = temp_directories
+        .keys()
+        .any(|name| value.contains(&format!("{{temp:{name}}}")));
     for (name, port) in ports {
         result = result.replace(&format!("{{port:{name}}}"), port);
     }
     for (name, path) in temp_directories {
         result = result.replace(&format!("{{temp:{name}}}"), path);
     }
+    #[cfg(windows)]
+    if contains_temp_placeholder {
+        result = normalize_verbatim_path_separators(result);
+    }
+    #[cfg(not(windows))]
+    let _ = contains_temp_placeholder;
     if result.contains("{port:") || result.contains("{temp:") {
         return Err(AppError::usage(format!(
             "argument contains an unknown or unterminated lease placeholder: {value}"
         )));
     }
     Ok(result)
+}
+
+#[cfg(windows)]
+fn normalize_verbatim_path_separators(mut value: String) -> String {
+    if let Some(path_start) = value.find(r"\\?\") {
+        let suffix = value[path_start..].replace('/', r"\");
+        value.truncate(path_start);
+        value.push_str(&suffix);
+    }
+    value
 }
 
 fn environment_name(kind: &str, name: &str) -> String {
@@ -450,5 +469,19 @@ mod tests {
             "127.0.0.1:43123:/tmp/build"
         );
         assert!(replace_placeholders("{port:missing}", &ports, &temp).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn temp_placeholder_suffix_uses_verbatim_windows_path_separators() {
+        let temp = BTreeMap::from([(
+            "build".to_owned(),
+            r"\\?\C:\state\resources\temp\build".to_owned(),
+        )]);
+        assert_eq!(
+            replace_placeholders("{temp:build}/nested/artifact.log", &BTreeMap::new(), &temp)
+                .unwrap(),
+            r"\\?\C:\state\resources\temp\build\nested\artifact.log"
+        );
     }
 }

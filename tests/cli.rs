@@ -577,7 +577,7 @@ fn maximum_runtime_stops_the_tree_with_a_distinct_reason() {
         &[
             "start",
             "--max-runtime",
-            "150ms",
+            if cfg!(windows) { "1s" } else { "150ms" },
             "--runtime-grace",
             "100ms",
             "--",
