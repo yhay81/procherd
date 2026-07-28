@@ -17,6 +17,8 @@ semantic versioning.
   with every action pinned to an immutable commit SHA.
 - Enabled CodeQL default setup and restricted release and dependency-audit
   credentials to the minimum permissions required by each job.
+- Reconstruct canonical run IDs before path use and reject malformed persisted
+  lease-registry identifiers before pruning or allocating resources.
 
 ## [0.2.0] - 2026-07-29
 

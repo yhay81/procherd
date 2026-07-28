@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::AppError,
     model::{LeaseRequests, ReadinessCondition, RunState},
-    store::{atomic_write_json, now_ms, read_json},
+    store::{atomic_write_json, canonical_run_id, now_ms, read_json},
 };
 
 const REGISTRY_SCHEMA: &str = "procherd.port-leases.v1";
@@ -71,12 +71,15 @@ impl LeaseAllocation {
         state: &mut RunState,
         requests: &LeaseRequests,
     ) -> Result<Self, AppError> {
+        let run_id = canonical_run_id(&state.run_id)?;
+        validate_names(&requests.port_names)?;
+        validate_names(&requests.temp_directory_names)?;
         let acquired_at_ms = now_ms();
         let temp_paths = create_temp_directories(run_dir, &requests.temp_directory_names)?;
-        let ports = reserve_ports(root, &state.run_id, &requests.port_names)?;
+        let ports = reserve_ports(root, &run_id, &requests.port_names)?;
         let mut allocation = Self {
             root: root.to_path_buf(),
-            run_id: state.run_id.clone(),
+            run_id,
             ports,
             environment: Vec::new(),
             registry_released: false,
@@ -297,6 +300,7 @@ fn update_registry(
             registry.schema_version
         )));
     }
+    validate_registry(&registry)?;
     let result = update(&mut registry).and_then(|()| atomic_write_json(&path, &registry));
     FileExt::unlock(&lock)?;
     result
@@ -309,6 +313,9 @@ fn prune_stale(root: &Path, registry: &mut PortRegistry) {
 }
 
 fn run_supervisor_active(root: &Path, run_id: &str) -> bool {
+    let Ok(run_id) = canonical_run_id(run_id) else {
+        return false;
+    };
     let path = root.join(run_id).join("supervisor.lock");
     let Ok(metadata) = fs::symlink_metadata(&path) else {
         return false;
@@ -361,21 +368,42 @@ fn create_temp_directories(
 fn validate_names(names: &[String]) -> Result<(), AppError> {
     let mut unique = BTreeSet::new();
     for name in names {
-        let valid = (1..=32).contains(&name.len())
-            && name
-                .bytes()
-                .next()
-                .is_some_and(|byte| byte.is_ascii_lowercase())
-            && name.bytes().all(|byte| {
-                byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
-            });
-        if !valid {
+        if !valid_name(name) {
             return Err(AppError::usage(format!(
                 "invalid lease name {name:?}; use 1-32 lowercase ASCII letters, digits, _ or -, starting with a letter"
             )));
         }
         if !unique.insert(name) {
             return Err(AppError::usage(format!("duplicate lease name {name:?}")));
+        }
+    }
+    Ok(())
+}
+
+fn valid_name(name: &str) -> bool {
+    (1..=32).contains(&name.len())
+        && name
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_lowercase())
+        && name.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
+        })
+}
+
+fn validate_registry(registry: &PortRegistry) -> Result<(), AppError> {
+    for entry in &registry.entries {
+        canonical_run_id(&entry.run_id).map_err(|_| {
+            AppError::integrity(format!(
+                "port lease registry contains invalid run ID {:?}",
+                entry.run_id
+            ))
+        })?;
+        if !valid_name(&entry.name) {
+            return Err(AppError::integrity(format!(
+                "port lease registry contains invalid lease name {:?}",
+                entry.name
+            )));
         }
     }
     Ok(())
@@ -455,8 +483,13 @@ fn create_new_private_dir(path: &Path) -> Result<(), AppError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{replace_placeholders, validate_requests};
+    use super::{
+        PortRegistry, PortRegistryEntry, REGISTRY_SCHEMA, replace_placeholders,
+        run_supervisor_active, update_registry, validate_registry, validate_requests,
+    };
     use std::collections::BTreeMap;
+    use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn lease_names_and_placeholders_are_strict() {
@@ -469,6 +502,47 @@ mod tests {
             "127.0.0.1:43123:/tmp/build"
         );
         assert!(replace_placeholders("{port:missing}", &ports, &temp).is_err());
+    }
+
+    #[test]
+    fn registry_rejects_path_like_run_ids_before_pruning() {
+        let sandbox = tempdir().unwrap();
+        let root = sandbox.path().join("state");
+        fs::create_dir(&root).unwrap();
+        let registry = PortRegistry {
+            schema_version: REGISTRY_SCHEMA.to_owned(),
+            entries: vec![PortRegistryEntry {
+                run_id: "../outside".to_owned(),
+                name: "http".to_owned(),
+                port: 31_337,
+                acquired_at_ms: 1,
+            }],
+        };
+        fs::write(
+            root.join("port-leases.json"),
+            serde_json::to_vec(&registry).unwrap(),
+        )
+        .unwrap();
+
+        let error = update_registry(&root, |_| Ok(())).unwrap_err();
+        assert!(error.to_string().contains("invalid run ID"));
+        assert!(!run_supervisor_active(&root, "../outside"));
+    }
+
+    #[test]
+    fn registry_rejects_path_like_lease_names() {
+        let registry = PortRegistry {
+            schema_version: REGISTRY_SCHEMA.to_owned(),
+            entries: vec![PortRegistryEntry {
+                run_id: "run_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_owned(),
+                name: "../temp".to_owned(),
+                port: 31_337,
+                acquired_at_ms: 1,
+            }],
+        };
+
+        let error = validate_registry(&registry).unwrap_err();
+        assert!(error.to_string().contains("invalid lease name"));
     }
 
     #[cfg(windows)]

@@ -54,8 +54,8 @@ impl Store {
         spec: &SupervisorSpec,
         owner_token: &str,
     ) -> Result<PathBuf, AppError> {
-        validate_run_id(&state.run_id)?;
-        let run_dir = self.root.join(&state.run_id);
+        let run_id = canonical_run_id(&state.run_id)?;
+        let run_dir = self.root.join(run_id);
         create_new_private_dir(&run_dir)?;
         create_private_file(&run_dir.join("supervisor.lock"))?;
         write_new_json(&run_dir.join("state.json"), state)?;
@@ -65,8 +65,8 @@ impl Store {
     }
 
     pub fn run_dir(&self, run_id: &str) -> Result<PathBuf, AppError> {
-        validate_run_id(run_id)?;
-        let run_dir = self.root.join(run_id);
+        let run_id = canonical_run_id(run_id)?;
+        let run_dir = self.root.join(&run_id);
         match fs::symlink_metadata(&run_dir) {
             Ok(metadata) if metadata.file_type().is_symlink() => Err(AppError::integrity(format!(
                 "run directory is a symbolic link: {}",
@@ -175,18 +175,23 @@ pub fn now_ms() -> u64 {
 }
 
 pub fn validate_run_id(run_id: &str) -> Result<(), AppError> {
+    canonical_run_id(run_id).map(drop)
+}
+
+pub(crate) fn canonical_run_id(run_id: &str) -> Result<String, AppError> {
     let suffix = run_id
         .strip_prefix("run_")
         .ok_or_else(|| AppError::usage("run ID must start with run_"))?;
     let parsed = suffix.parse::<Ulid>().map_err(|_| {
         AppError::usage("run ID must contain a canonical 26-character uppercase ULID")
     })?;
-    if suffix.len() != 26 || parsed.to_string() != suffix {
+    let canonical = format!("run_{parsed}");
+    if suffix.len() != 26 || canonical != run_id {
         return Err(AppError::usage(
             "run ID must contain a canonical 26-character uppercase ULID",
         ));
     }
-    Ok(())
+    Ok(canonical)
 }
 
 pub fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, AppError> {
@@ -367,4 +372,24 @@ pub fn ensure_regular_file(path: &Path) -> Result<(), AppError> {
         )));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::canonical_run_id;
+
+    #[test]
+    fn canonical_run_id_reconstructs_only_the_canonical_component() {
+        let run_id = "run_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+        assert_eq!(canonical_run_id(run_id).unwrap(), run_id);
+
+        for invalid in [
+            "../run_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "run_01arz3ndektsv4rrffq69g5fav",
+            "run_01ARZ3NDEKTSV4RRFFQ69G5FAV/child",
+            "run_01ARZ3NDEKTSV4RRFFQ69G5FA",
+        ] {
+            assert!(canonical_run_id(invalid).is_err(), "{invalid}");
+        }
+    }
 }
