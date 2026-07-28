@@ -22,7 +22,10 @@ guarantees, and machine contracts explicit.
 - Explicit recovery policy for supervisor or machine interruption.
 - Compatibility fixtures for every published JSON and store schema.
 - Stress tests for concurrent starts, leases, stop requests, and GC.
-- Published latency, cleanup, log-pressure, and readiness benchmarks.
+- [x] Deterministic 1,000-run store and start-to-running harness with weekly
+  raw latency, output-size, controller-memory, and supervisor-memory artifacts.
+- Calibrated p95 thresholds plus cleanup, log-pressure, and readiness
+  benchmarks.
 
 Current evidence: the checked-in v0.1 golden store pins state, log, and owner
 token bytes and is reopened through status, logs, wait, stop, list, leases, and
