@@ -56,7 +56,9 @@ trigger best-effort tree termination before the supervisor exits.
 
 Lifecycle state is durable; `supervisor_active` is observed from the lock.
 `observed_status` is `orphaned` only when durable state claims a live state but
-the supervisor is inactive.
+the supervisor is inactive. Because the supervisor can finalize between a
+state read and a lock check, an inactive observation is paired with a second
+state read before declaring a run orphaned.
 
 Terminal API boundaries include supervisor shutdown:
 

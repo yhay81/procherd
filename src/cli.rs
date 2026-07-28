@@ -540,8 +540,7 @@ fn start(store: &Store, format: OutputFormat, options: StartCommand) -> Result<(
     let deadline = Instant::now() + startup_timeout;
     let mut active_seen = false;
     loop {
-        let state = store.read_state(&run_id)?;
-        let active = store.supervisor_active(&run_id)?;
+        let (state, active) = observe_state_and_activity(store, &run_id)?;
         active_seen |= active;
         if !matches!(state.status, RunStatus::Created | RunStatus::Starting) {
             if state.status.is_terminal() && active {
@@ -607,7 +606,12 @@ fn start(store: &Store, format: OutputFormat, options: StartCommand) -> Result<(
 }
 
 fn load_view(store: &Store, run_id: &str) -> Result<RunView, AppError> {
-    let state = store.read_state(run_id)?;
+    let (state, active) = observe_state_and_activity(store, run_id)?;
+    Ok(RunView::new(state, active))
+}
+
+fn observe_state_and_activity(store: &Store, run_id: &str) -> Result<(RunState, bool), AppError> {
+    let mut state = store.read_state(run_id)?;
     if state.schema_version != RUN_SCHEMA_VERSION {
         return Err(AppError::integrity(format!(
             "unsupported run schema {}",
@@ -615,7 +619,19 @@ fn load_view(store: &Store, run_id: &str) -> Result<RunView, AppError> {
         )));
     }
     let active = store.supervisor_active(run_id)?;
-    Ok(RunView::new(state, active))
+    if !active && state.status.is_live() {
+        // The supervisor persists terminal state before releasing its lock.
+        // It can finish between the first state read and the lock observation,
+        // so pair an inactive lock with a fresh state snapshot.
+        state = store.read_state(run_id)?;
+        if state.schema_version != RUN_SCHEMA_VERSION {
+            return Err(AppError::integrity(format!(
+                "unsupported run schema {}",
+                state.schema_version
+            )));
+        }
+    }
+    Ok((state, active))
 }
 
 fn wait(
