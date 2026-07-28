@@ -1,0 +1,51 @@
+name: Bug report
+description: Report reproducible lifecycle, cleanup, readiness, lease, log, or state behavior.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not post owner tokens, environment values, state directories, or raw logs. Use private vulnerability reporting for security issues.
+  - type: input
+    id: version
+    attributes:
+      label: ProcHerd version
+      placeholder: procherd 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options: [Linux, macOS, Windows, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact redacted command
+      description: Include the ProcHerd argument vector and a minimal synthetic child.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed structured result
+      description: Include redacted status/error JSON and whether descendants remained.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: timing
+    attributes:
+      label: Timing and reproducibility
+      description: State how often it occurs and relevant timeout, grace, output-volume, and lease details.
+    validations:
+      required: true

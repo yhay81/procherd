@@ -1,0 +1,69 @@
+[package]
+name = "procherd"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Durable local process control for software agents"
+repository = "https://github.com/yhay81/procherd"
+readme = "README.md"
+keywords = ["process", "supervisor", "agent", "cli", "automation"]
+categories = ["command-line-utilities", "development-tools"]
+include = [
+    "/src/**",
+    "/tests/**",
+    "/docs/**",
+    "/Cargo.toml",
+    "/Cargo.lock",
+    "/README.md",
+    "/CONCEPT.md",
+    "/CHANGELOG.md",
+    "/SECURITY.md",
+    "/CONTRIBUTING.md",
+    "/CODE_OF_CONDUCT.md",
+    "/GOVERNANCE.md",
+    "/ROADMAP.md",
+    "/RELEASING.md",
+    "/SUPPORT.md",
+    "/ADOPTERS.md",
+    "/LICENSE",
+]
+
+[dependencies]
+atomic-write-file = "0.3"
+base64 = "0.22"
+clap = { version = "4.6", features = ["derive", "env"] }
+clap_complete = "4.6"
+fs4 = "1.1"
+getrandom = "0.4"
+process-wrap = { version = "8.2.1", default-features = false, features = [
+    "creation-flags",
+    "job-object",
+    "process-group",
+    "process-session",
+    "std",
+    "tracing",
+] }
+schemars = { version = "1.2", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+thiserror = "2.0"
+ulid = "3.0"
+url = "2.5"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Security",
+    "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+tempfile = "3.20"
+
+[profile.release]
+lto = "thin"
+strip = true
+
+[lints.rust]
+unsafe_code = "deny"

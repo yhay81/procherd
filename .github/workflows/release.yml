@@ -1,0 +1,145 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Validate immutable release identity
+        shell: bash
+        run: |
+          package_version="$(
+            cargo metadata --no-deps --format-version 1 \
+              | jq -r '.packages[] | select(.name == "procherd") | .version'
+          )"
+          test "${GITHUB_REF_NAME}" = "v${package_version}"
+          test "$(git cat-file -t "${GITHUB_REF_NAME}")" = tag
+          git cat-file -p "${GITHUB_REF_NAME}" \
+            | grep -Eq 'BEGIN (PGP|SSH) SIGNATURE'
+          grep -F "## [${package_version}] - " CHANGELOG.md
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            binary: procherd
+            archive: tar.gz
+          - os: macos-15-intel
+            platform: macos-x86_64
+            binary: procherd
+            archive: tar.gz
+          - os: macos-latest
+            platform: macos-aarch64
+            binary: procherd
+            archive: tar.gz
+          - os: windows-latest
+            platform: windows-x86_64
+            binary: procherd.exe
+            archive: zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - name: Test library and CLI
+        run: cargo test --all-targets --locked
+      - name: Build release binary
+        run: cargo build --release --locked
+      - name: Stage package
+        shell: bash
+        run: |
+          package="procherd-${GITHUB_REF_NAME}-${{ matrix.platform }}"
+          mkdir -p "dist/${package}/completions"
+          cp "target/release/${{ matrix.binary }}" "dist/${package}/"
+          cp README.md CONCEPT.md ROADMAP.md CHANGELOG.md RELEASING.md SECURITY.md \
+            CONTRIBUTING.md CODE_OF_CONDUCT.md GOVERNANCE.md SUPPORT.md \
+            ADOPTERS.md LICENSE "dist/${package}/"
+          cp -R docs "dist/${package}/"
+          target/release/${{ matrix.binary }} completions bash > "dist/${package}/completions/procherd.bash"
+          target/release/${{ matrix.binary }} completions zsh > "dist/${package}/completions/_procherd"
+          target/release/${{ matrix.binary }} completions fish > "dist/${package}/completions/procherd.fish"
+          target/release/${{ matrix.binary }} completions powershell > "dist/${package}/completions/_procherd.ps1"
+          target/release/${{ matrix.binary }} --format json schema --document brief \
+            > "dist/${package}/contract.json"
+      - name: Archive Unix package
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          package="procherd-${GITHUB_REF_NAME}-${{ matrix.platform }}"
+          tar -C dist -czf "dist/${package}.tar.gz" "${package}"
+      - name: Archive Windows package
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $package = "procherd-$env:GITHUB_REF_NAME-${{ matrix.platform }}"
+          Compress-Archive -Path "dist/$package" -DestinationPath "dist/$package.zip"
+      - name: Attest build provenance
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: dist/*.${{ matrix.archive }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: procherd-${{ matrix.platform }}
+          path: dist/*.${{ matrix.archive }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          pattern: procherd-*
+          merge-multiple: true
+      - name: Install Rust and SBOM generator
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: Generate CycloneDX SBOM
+        run: |
+          cargo cyclonedx --format json --describe binaries --target all \
+            --spec-version 1.5
+          test -s procherd_bin.cdx.json
+          mv procherd_bin.cdx.json \
+            "artifacts/procherd-${GITHUB_REF_NAME}.cdx.json"
+      - name: Generate SHA-256 checksums
+        run: |
+          cd artifacts
+          sha256sum ./*.tar.gz ./*.zip ./*.cdx.json > SHA256SUMS
+      - name: Attest release SBOM
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+          sbom-path: artifacts/procherd-${{ github.ref_name }}.cdx.json
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" artifacts/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --generate-notes \
+            --verify-tag

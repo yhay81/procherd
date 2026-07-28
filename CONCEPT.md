@@ -1,158 +1,125 @@
 # ProcHerd concept
 
-## One-line thesis
+## Thesis
 
-ProcHerd gives software agents durable ownership of local processes, logs,
-readiness, and leased resources without requiring a terminal session to remain
-alive.
+ProcHerd gives software agents durable ownership of local processes, bounded
+logs, explicit readiness, and leased resources without requiring a terminal
+session or shared service to remain alive.
 
-## Problem
+## Primary job
 
-Starting a development server is easy for a human with a terminal. It is
-surprisingly difficult for an agent that may be interrupted, resumed, or
-replaced:
+Start one bounded local process from an argument vector, receive a stable run
+ID, wait for declared evidence, and later inspect or stop its complete owned
+process tree.
 
-- process IDs are reused and child processes escape;
-- output floods context or disappears with the shell;
-- ports and temporary directories collide;
-- "started" does not mean "ready";
-- cancellation leaves processes behind;
-- another agent cannot safely reacquire ownership.
+The target users are coding agents, local orchestration frameworks, developer
+tools, and humans operating agent-created jobs.
 
-Shell backgrounding and terminal multiplexers expose implementation details
-instead of a compact lifecycle contract.
+## Design decisions
 
-## Target users and jobs
+### Stable identity, live ownership
 
-- Coding agents running test servers, watchers, and long builds.
-- Local agent orchestration frameworks.
-- Developer tools that need resilient subprocess ownership.
-- Humans who want inspectable agent-created local jobs.
+A run ID is a canonical `run_<ULID>`, never a PID. Each run has a detached
+supervisor and an operating-system lock. Durable state can therefore be read
+offline while liveness is determined from the lock rather than PID reuse.
 
-The primary job is: **start a bounded local process, receive a stable run ID,
-wait for a declared condition, and later inspect or stop the entire process
-tree.**
+ProcHerd deliberately uses one small supervisor per run instead of a shared
+broker. This removes daemon installation, upgrade coordination, and a single
+failure domain. The tradeoff is one additional process per active run.
 
-## Product principles
+### Argument vectors, not shell reconstruction
 
-1. Stable run identity is separate from operating-system PID.
-2. Process-tree ownership is explicit.
-3. Readiness is a declared condition with evidence.
-4. Logs are cursor-based and bounded.
-5. Ports, paths, and other exclusive resources are leases.
-6. Cleanup is observable and idempotent.
-7. Local, same-user operation works with zero manual daemon setup.
+The public start contract is a UTF-8 program plus arguments. Shell behavior is
+available only when the caller explicitly names a shell as the program.
+ProcHerd never parses, interpolates, quotes, or reconstructs a shell string.
 
-## Proposed command contract
+### Bounded evidence
 
-```text
-procherd schema --brief --format json
-procherd start --spec run.json --format json
-procherd status <run-id> --format json
-procherd wait <run-id> --for ready --timeout 30s --format json
-procherd logs <run-id> --after <cursor> --limit 200 --format ndjson
-procherd stop <run-id> --grace 5s --format json
-procherd leases <run-id> --format json
-procherd gc --dry-run --format json
-```
+Stdout and stderr are drained concurrently into ordered, cursor-addressed
+records. Retention has a hard byte cap. Bytes beyond the cap are still drained
+and hashed but reported as dropped, so output pressure cannot turn into a
+hidden process deadlock.
 
-The process argument vector is an array in the spec, never a shell string unless
-the caller explicitly requests a shell interpreter.
+### Readiness is evidence
 
-## Run specification
+Spawn success and application readiness are distinct. Configured readiness
+conditions are AND-composed, retain per-check evidence and timestamps, and
+fail if the process exits first or the readiness deadline expires.
 
-A run spec can declare:
+### Leases expose their guarantee
 
-- argument vector, working directory, and environment references;
-- stdin behavior and terminal requirements;
-- startup, runtime, idle, and shutdown deadlines;
-- restart policy and maximum attempts;
-- readiness checks: port, HTTP, file, log pattern, or child exit;
-- leased ports and temporary directories;
-- log retention and redaction rules;
-- CPU, memory, and process-count limits where supported;
-- cleanup hooks with explicit time budgets.
+Temporary directories are private paths owned by the run. Loopback ports are
+reserved and coordinated across active ProcHerd runs. The handoff to a child
+that binds its own port necessarily contains a small race, so the durable
+contract records the handoff gap and names the guarantee
+`coordinated_best_effort`.
 
-## Lifecycle model
+### Cleanup is observable
+
+Unix children start in a new process group; Windows children are assigned to a
+Job Object. Stop and runtime-limit paths record requested time, grace period,
+forced termination, descendant cleanup, and completion. Repeated stop calls
+are safe.
+
+## Lifecycle
 
 ```text
-created -> starting -> ready/running -> exited
-                    \-> failed
-ready/running -> stopping -> stopped
-any live state -> orphaned -> recovered/stopped
+created -> starting -> running -> exited
+                     \-> failed
+running -> stopping -> stopped
+running -> stopping -> stopped (runtime_limit)
 ```
 
-Every transition has a timestamp, reason code, and evidence. A run that exits
-before readiness is not reported as successfully started.
+Readiness is an orthogonal state:
 
-## Ownership and persistence
+```text
+not_configured
+pending -> ready
+pending -> timed_out
+pending -> failed (process exited first)
+```
 
-A small same-user broker maintains run state under the platform's standard data
-directory. The CLI starts or reconnects to it automatically. It records process
-groups or platform job objects, leases, log segments, and lifecycle events.
-
-Reacquisition uses the stable run ID and a scoped owner token. Status remains
-readable without the token; mutation requires ownership or an explicit
-administrative operation.
-
-## Log contract
-
-Logs are stored outside agent context and read through monotonic cursors.
-Callers can request:
-
-- stdout, stderr, or both;
-- records after a cursor;
-- line and byte limits;
-- time windows;
-- matching records plus bounded context;
-- a digest for the complete retained stream.
-
-Dropped or expired log data is reported explicitly.
+`observed_status: orphaned` is a derived observation when durable state claims
+a live lifecycle state but the supervisor lock is inactive. Version 0.1
+reports this condition and refuses unsafe mutation; it does not promise crash
+reattachment.
 
 ## Initial scope
 
-Version 0.1 will support:
+Version 0.1 supports one-machine, one-user execution on Linux, macOS, and
+Windows:
 
-- macOS and Linux local processes;
-- process-tree start, wait, inspect, stop, and cleanup;
-- port and temporary-directory leases;
-- port, HTTP, file, and log-pattern readiness;
-- cursor-based structured logs;
-- automatic same-user broker startup;
-- crash recovery and conservative garbage collection.
+- detached start, status, list, wait, logs, stop, leases, and conservative GC;
+- Unix process-group and Windows Job Object cleanup;
+- local TCP, local HTTP, regular-file, retained-log-literal, and leased-port
+  readiness;
+- named loopback ports and private temporary directories;
+- bounded structured logs with complete-stream SHA-256;
+- maximum runtime and bounded shutdown grace;
+- human, versioned JSON/NDJSON, JSON Schema, and completion output.
 
-## Non-goals
+## Explicit non-goals for 0.1
 
-- A distributed job scheduler.
-- Container orchestration.
-- Multi-tenant security or remote execution.
-- A general service manager for operating-system boot.
-- Hiding whether a command requested a shell.
-- Inferring application readiness from elapsed time alone.
-
-## Differentiation and defensibility
-
-ProcHerd focuses on the lifecycle gap between a subprocess library and a
-distributed scheduler. Its agent-native contract combines durable IDs, ownership,
-readiness, leased resources, and bounded logs. Cross-platform process correctness
-and integrations with agent frameworks can become a meaningful moat.
+- distributed scheduling, containers, remote execution, or multi-tenancy;
+- a boot-time service manager or automatic restart policy;
+- PTY, interactive stdin, or implicit shell execution;
+- HTTPS, remote, authenticated, or custom-header readiness probes;
+- CPU, memory, or process-count isolation;
+- encrypted or redacted log storage;
+- atomic port transfer to arbitrary child programs;
+- recovery or reattachment after supervisor or machine failure;
+- containment of programs that intentionally escape OS process-tree controls.
 
 ## Success measures
 
-- Zero leaked descendant processes in the lifecycle fixture suite.
-- Port-collision and stale-lease rates.
-- Successful reacquisition after client interruption.
-- Readiness false-positive rate.
-- Median log bytes and tokens retrieved per debugging task.
-- Adoption as a subprocess backend in agent frameworks.
+- zero leaked descendants in repeated lifecycle fixtures;
+- no readiness claim without retained, inspectable evidence;
+- deterministic reacquisition and cursor pagination after the launching client
+  exits;
+- explicit rather than silent log loss and port-handoff gaps;
+- cross-platform release checks, SBOMs, provenance, and verified archives;
+- adoption as a subprocess backend in at least three opt-in external
+  workflows before 1.0.
 
-## Key risks and open questions
-
-- Process-tree control differs substantially across platforms.
-- Daemon crashes can desynchronize recorded and actual state.
-- Owner-token ergonomics must not undermine local security.
-- Some commands daemonize or deliberately escape process groups.
-- Resource limiting without containers is platform-dependent.
-
-ProcHerd must expose capability differences rather than pretending every
-platform can enforce the same guarantees.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the implementation model
+and [ROADMAP.md](ROADMAP.md) for the compatibility path to 1.0.
