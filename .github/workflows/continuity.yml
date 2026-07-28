@@ -1,0 +1,22 @@
+name: Maintainer continuity drill
+
+on:
+  schedule:
+    - cron: "39 5 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  attestations: read
+
+jobs:
+  public-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Recover and verify public source and release evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/continuity-drill.sh "$GITHUB_REPOSITORY" procherd
