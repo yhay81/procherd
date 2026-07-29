@@ -54,12 +54,36 @@ Only a release manager named in [GOVERNANCE.md](GOVERNANCE.md) may release.
     changelog, platform guarantees, state/log sensitivity, and private security
     reporting.
 
-Publishing to crates.io remains manual until registry ownership and credentials
-are configured:
+## crates.io
+
+The first crates.io release must be published manually because Trusted
+Publishing can only be configured after the crate exists. From the exact signed
+release commit, repeat `cargo publish --dry-run --locked`, review
+`cargo package --list --locked`, then publish:
 
 ```bash
 cargo publish --locked
 ```
+
+Use a Cargo credential provider backed by the operating-system credential
+store. Never put a crates.io token in Git, workflow YAML, logs, or a
+repository-level Actions secret. If Cargo times out after upload, check the
+crates.io page and index before retrying; an accepted version is immutable.
+
+After the first manual release:
+
+1. Add the crate's Trusted Publisher in crates.io, restricted to
+   `yhay81/procherd`, the dedicated publish workflow filename, and the protected
+   `crates-io` GitHub environment.
+2. Add that workflow only after the mapping exists. Grant only
+   `contents: read` and `id-token: write`, pin every action to an immutable
+   commit, exchange OIDC with `rust-lang/crates-io-auth-action`, and run
+   `cargo publish --locked`.
+3. Remove any temporary API token, verify registry ownership and account
+   recovery without recording secrets, and require environment approval for
+   every publish.
+4. Install the exact version from crates.io in a clean environment and repeat
+   the CLI smoke checks.
 
 Never move or reuse a published tag or version. A failed release is followed
 by a documented patch release.
