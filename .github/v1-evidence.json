@@ -1,0 +1,51 @@
+{
+  "schema_version": "oss-v1-evidence/v1",
+  "project": "procherd",
+  "target_version": "1.0.0",
+  "as_of": "2026-07-29",
+  "gates": {
+    "product_compatibility": {
+      "status": "pending",
+      "evidence": []
+    },
+    "correctness_security": {
+      "status": "pending",
+      "evidence": [],
+      "independent_review": null,
+      "open_critical": 0,
+      "open_high": 0,
+      "reviewed_areas": []
+    },
+    "performance_bounds": {
+      "status": "pending",
+      "evidence": []
+    },
+    "delivery_maintenance": {
+      "status": "pending",
+      "evidence": [],
+      "ci_window": {
+        "start": null,
+        "end": null,
+        "required_days": 30,
+        "tracks": {
+          "lifecycle-stress": [],
+          "linux": [],
+          "macos": [],
+          "windows": []
+        }
+      },
+      "continuity": {
+        "status": "pending",
+        "mode": null,
+        "evidence": []
+      }
+    },
+    "adoption": {
+      "status": "pending",
+      "adopters": [],
+      "repeat_adopters": [],
+      "public_integration": null,
+      "non_maintainer_contribution": null
+    }
+  }
+}

@@ -2,6 +2,30 @@
 
 Only a release manager named in [GOVERNANCE.md](GOVERNANCE.md) may release.
 
+## v1 evidence gate
+
+Every release validates the checked-in evidence manifest structure:
+
+```bash
+python3 scripts/verify_v1_evidence.py \
+  .github/v1-evidence.json --check-structure
+```
+
+For every v1 or later release, update the manifest with public, reviewable
+evidence for the exact target version and run:
+
+```bash
+python3 scripts/verify_v1_evidence.py \
+  .github/v1-evidence.json \
+  --require-ready \
+  --release-version 1.0.0
+```
+
+The verifier derives readiness from the evidence. Do not add a bypass, count
+maintainer activity as adoption, suppress a failed gate, or move evidence dates
+forward. The continuous window must end on `as_of` and include one public
+successful-run URL for every required track on every date.
+
 1. Confirm the version is unpublished and `CHANGELOG.md`, `Cargo.toml`, and
    `Cargo.lock` agree.
 2. Confirm the release commit is on `main`, the worktree is clean, and every
