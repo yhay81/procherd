@@ -6,6 +6,13 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Bounded the stdout/stderr handoff queue and per-tick drain work so log floods
+  cannot grow supervisor memory with total output or starve stop and runtime
+  checks. Terminal state now fails explicitly if complete-stream digest capture
+  cannot close within the drain bound.
+
 ### Added
 
 - Added platform-specific, checksum- and provenance-verified native

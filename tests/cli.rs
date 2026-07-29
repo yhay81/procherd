@@ -12,6 +12,7 @@ use procherd::model::{
     StatusResult, StopResult, WaitResult,
 };
 use serde::de::DeserializeOwned;
+use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
 fn binary() -> PathBuf {
@@ -138,7 +139,7 @@ fn detached_run_can_be_reacquired_and_logs_are_cursor_bound() {
 }
 
 #[test]
-fn log_limit_drops_bytes_explicitly_without_blocking_the_child() {
+fn log_limit_drops_bytes_explicitly_and_preserves_digests() {
     let temp = TempDir::new().unwrap();
     let binary = binary();
     let binary = binary.to_str().unwrap();
@@ -165,6 +166,102 @@ fn log_limit_drops_bytes_explicitly_without_blocking_the_child() {
     assert_eq!(wait.run.state.logs.dropped_bytes, 25);
     assert!(wait.run.state.logs.stdout_sha256.is_some());
     assert!(wait.run.state.logs.stderr_sha256.is_some());
+}
+
+#[test]
+fn log_pressure_preserves_complete_evidence_and_runtime_control() {
+    const FINITE_BYTES: u64 = 8 * 1024 * 1024;
+
+    let temp = TempDir::new().unwrap();
+    let binary = binary();
+    let binary = binary.to_str().unwrap();
+    let finite_bytes = FINITE_BYTES.to_string();
+    let finite: StartResult = parse_success(invoke(
+        temp.path(),
+        &[
+            "start",
+            "--max-log-bytes",
+            "1",
+            "--",
+            binary,
+            "__fixture",
+            "flood",
+            "--bytes",
+            &finite_bytes,
+        ],
+    ));
+    let finite_wait: WaitResult = parse_success(invoke(
+        temp.path(),
+        &[
+            "wait",
+            &finite.run.state.run_id,
+            "--for",
+            "exit",
+            "--timeout",
+            "10s",
+        ],
+    ));
+    assert_eq!(finite_wait.run.state.logs.captured_bytes, 1);
+    assert_eq!(finite_wait.run.state.logs.dropped_bytes, FINITE_BYTES - 1);
+    let expected_sha256 = sha256_repeated_byte(b'x', FINITE_BYTES);
+    assert_eq!(
+        finite_wait.run.state.logs.stdout_sha256.as_deref(),
+        Some(expected_sha256.as_str())
+    );
+
+    let unbounded_bytes = u64::MAX.to_string();
+    let limited: StartResult = parse_success(invoke(
+        temp.path(),
+        &[
+            "start",
+            "--max-log-bytes",
+            "1",
+            "--max-runtime",
+            "200ms",
+            "--runtime-grace",
+            "0ms",
+            "--",
+            binary,
+            "__fixture",
+            "flood",
+            "--bytes",
+            &unbounded_bytes,
+        ],
+    ));
+    let limited_wait: WaitResult = parse_success(invoke(
+        temp.path(),
+        &[
+            "wait",
+            &limited.run.state.run_id,
+            "--for",
+            "exit",
+            "--timeout",
+            "10s",
+        ],
+    ));
+    assert_eq!(limited_wait.run.state.status, RunStatus::Stopped);
+    assert_eq!(
+        limited_wait.run.state.exit.as_ref().unwrap().reason,
+        ExitReason::RuntimeLimit
+    );
+    let deadline = limited_wait
+        .run
+        .state
+        .limits
+        .runtime_deadline_at_ms
+        .unwrap();
+    let triggered = limited_wait
+        .run
+        .state
+        .limits
+        .runtime_limit_triggered_at_ms
+        .unwrap();
+    assert!(triggered >= deadline);
+    assert!(
+        triggered.saturating_sub(deadline) < 1_000,
+        "runtime limit was observed {} ms late",
+        triggered.saturating_sub(deadline)
+    );
 }
 
 #[test]
@@ -646,6 +743,21 @@ fn supervisor_io_failure_kills_the_owned_process_tree() {
         status.run.state.status == RunStatus::Failed
             || status.run.observed_status == procherd::model::ObservedStatus::Orphaned
     );
+}
+
+fn sha256_repeated_byte(byte: u8, mut remaining: u64) -> String {
+    let chunk = vec![byte; 64 * 1024];
+    let mut hasher = Sha256::new();
+    while remaining > 0 {
+        let count = usize::try_from(remaining.min(chunk.len() as u64)).unwrap_or(chunk.len());
+        hasher.update(&chunk[..count]);
+        remaining = remaining.saturating_sub(count as u64);
+    }
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn wait_until(timeout: Duration, mut condition: impl FnMut() -> bool) {

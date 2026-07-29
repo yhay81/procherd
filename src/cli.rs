@@ -243,6 +243,14 @@ enum FixtureCommand {
         #[arg(long, default_value_t = 0)]
         exit_code: i32,
     },
+    Flood {
+        #[arg(long)]
+        bytes: u64,
+        #[arg(long, default_value_t = 0)]
+        hold_ms: u64,
+        #[arg(long, default_value_t = false)]
+        stderr: bool,
+    },
     Tree {
         #[arg(long)]
         marker: PathBuf,
@@ -913,7 +921,13 @@ fn emit_schema(document: SchemaDocument, format: OutputFormat) -> Result<(), App
             "log_contract": {
                 "encoding": "base64",
                 "cursor": "monotonic per run",
-                "retention": "hard byte bound with explicit dropped_bytes"
+                "retention": "hard byte bound with explicit dropped_bytes",
+                "handoff": {
+                    "chunk_bytes": crate::logs::READ_CHUNK_BYTES,
+                    "capacity_chunks": crate::logs::LOG_CHANNEL_CAPACITY,
+                    "backpressure": "bounded"
+                },
+                "control_batch_chunks": crate::supervisor::LOG_DRAIN_BATCH_CHUNKS
             },
             "exit_codes": {
                 "0": "success",
@@ -1115,6 +1129,19 @@ fn run_fixture(command: FixtureCommand) -> Result<(), AppError> {
             }
             std::process::exit(exit_code);
         }
+        FixtureCommand::Flood {
+            bytes,
+            hold_ms,
+            stderr,
+        } => {
+            if stderr {
+                write_fixture_bytes(&mut io::stderr().lock(), bytes)?;
+            } else {
+                write_fixture_bytes(&mut io::stdout().lock(), bytes)?;
+            }
+            thread::sleep(Duration::from_millis(hold_ms));
+            Ok(())
+        }
         FixtureCommand::Tree { marker } => {
             let child = Command::new(env::current_exe()?)
                 .arg("__fixture")
@@ -1182,6 +1209,17 @@ fn run_fixture(command: FixtureCommand) -> Result<(), AppError> {
             }
         }
     }
+}
+
+fn write_fixture_bytes(writer: &mut impl Write, mut remaining: u64) -> Result<(), AppError> {
+    static CHUNK: [u8; 64 * 1024] = [b'x'; 64 * 1024];
+    while remaining > 0 {
+        let count = usize::try_from(remaining.min(CHUNK.len() as u64)).unwrap_or(CHUNK.len());
+        writer.write_all(&CHUNK[..count])?;
+        remaining = remaining.saturating_sub(count as u64);
+    }
+    writer.flush()?;
+    Ok(())
 }
 
 #[cfg(test)]

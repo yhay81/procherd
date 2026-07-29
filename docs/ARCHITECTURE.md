@@ -71,14 +71,22 @@ This prevents a caller from treating a recorded exit as completed cleanup.
 
 ## Output flow
 
-Stdout and stderr readers send 8 KiB chunks to the supervisor loop. Records
-share one monotonic cursor and preserve stream identity and arbitrary bytes
-through base64. The retention budget is global across both streams.
+Stdout and stderr readers send 8 KiB chunks through a fixed-capacity queue to
+the supervisor loop. Each control-loop pass processes a fixed maximum batch so
+stop requests, runtime limits, readiness, and process exit cannot be starved by
+continuous output. Records share one monotonic cursor and preserve stream
+identity and arbitrary bytes through base64. The retention budget is global
+across both streams.
 
 After the budget is exhausted, the readers continue draining and hashing.
 Durable summaries distinguish `captured_bytes` and `dropped_bytes`; final
 stream digests cover both. Log-based readiness only observes retained bytes,
 so ProcHerd never claims evidence that callers cannot retrieve.
+
+The queue applies bounded backpressure when a child produces output faster than
+the supervisor can hash it. After process exit, terminal state is persisted only
+after both readers close; a bounded drain timeout becomes an explicit
+`log_drain_timeout` supervisor failure rather than a successful partial digest.
 
 ## Resource coordination
 

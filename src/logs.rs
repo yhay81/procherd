@@ -2,7 +2,7 @@ use std::{
     fs::{File, OpenOptions},
     io::{BufRead, BufReader, BufWriter, Read, Write},
     path::Path,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver, SyncSender},
     thread,
 };
 
@@ -19,7 +19,8 @@ use crate::{
     store::{create_new_private_file, ensure_regular_file, now_ms},
 };
 
-const READ_CHUNK_BYTES: usize = 8 * 1024;
+pub(crate) const READ_CHUNK_BYTES: usize = 8 * 1024;
+pub(crate) const LOG_CHANNEL_CAPACITY: usize = 64;
 const MAX_RECORD_LINE_BYTES: usize = 32 * 1024;
 
 #[derive(Debug)]
@@ -28,7 +29,7 @@ pub struct LogChunk {
     pub bytes: Vec<u8>,
 }
 
-pub fn capture_stream<R>(stream: LogStream, mut reader: R, sender: Sender<LogChunk>)
+pub fn capture_stream<R>(stream: LogStream, mut reader: R, sender: SyncSender<LogChunk>)
 where
     R: Read + Send + 'static,
 {
@@ -50,8 +51,8 @@ where
     });
 }
 
-pub fn channel() -> (Sender<LogChunk>, Receiver<LogChunk>) {
-    mpsc::channel()
+pub fn channel() -> (SyncSender<LogChunk>, Receiver<LogChunk>) {
+    mpsc::sync_channel(LOG_CHANNEL_CAPACITY)
 }
 
 pub struct LogWriter {
@@ -247,5 +248,33 @@ pub fn decode_record(record: &LogRecord) -> Result<Vec<u8>, AppError> {
                 record.cursor
             ))
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc::TrySendError;
+
+    use super::{LOG_CHANNEL_CAPACITY, LogChunk, channel};
+    use crate::model::LogStream;
+
+    #[test]
+    fn capture_channel_applies_fixed_backpressure() {
+        let (sender, _receiver) = channel();
+        for _ in 0..LOG_CHANNEL_CAPACITY {
+            sender
+                .try_send(LogChunk {
+                    stream: LogStream::Stdout,
+                    bytes: vec![0],
+                })
+                .unwrap();
+        }
+        assert!(matches!(
+            sender.try_send(LogChunk {
+                stream: LogStream::Stdout,
+                bytes: vec![0],
+            }),
+            Err(TrySendError::Full(_))
+        ));
     }
 }
