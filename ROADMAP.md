@@ -27,12 +27,13 @@ guarantees, and machine contracts explicit.
 - Calibrated p95 thresholds plus cleanup, log-pressure, and readiness
   benchmarks.
 
-Current evidence: the checked-in v0.1 golden store pins state, log, and owner
-token bytes and is reopened through status, logs, wait, stop, list, leases, and
-dry-run GC. Twelve declared state and log mutations exercise unknown fields,
-schema and run identity, Base64 and byte counts, cursor bounds, and incomplete
-terminal records. A second released minor version, transient-store fixtures,
-and migration or no-migration evidence are still required.
+Current evidence: v0.2 and v0.3 provide two released compatibility cycles. The
+current v0.3 reader reopens the digest-pinned v0.1 golden store through status,
+logs, wait, stop, list, leases, and dry-run GC. Twelve declared state and log
+mutations exercise unknown fields, schema and run identity, Base64 and byte
+counts, cursor bounds, and incomplete terminal records. The v0.2 and v0.3
+release notes record contract preservation; no migration is required.
+Transient-store fixtures are still required.
 
 ## 0.3 integrations and policy
 
