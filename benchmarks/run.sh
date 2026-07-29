@@ -231,7 +231,7 @@ jq -n \
         ] | max | . / 1024),
       idle_supervisor_high_water_mib: ($supervisor_hwm_kib / 1024)
     },
-    threshold_status: "observation_only"
+    threshold_status: "raw_sample"
   }' >"${result_path}"
 
 jq -e '
