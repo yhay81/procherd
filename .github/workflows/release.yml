@@ -84,7 +84,7 @@ jobs:
           package="procherd-${GITHUB_REF_NAME}-${RELEASE_PLATFORM}"
           mkdir -p "dist/${package}/completions"
           cp "target/release/${RELEASE_BINARY}" "dist/${package}/"
-          cp README.md CONCEPT.md ROADMAP.md CHANGELOG.md RELEASING.md SECURITY.md \
+          cp README.md INSTALL.md CONCEPT.md ROADMAP.md CHANGELOG.md RELEASING.md SECURITY.md \
             CONTRIBUTING.md CODE_OF_CONDUCT.md GOVERNANCE.md SUPPORT.md \
             ADOPTERS.md LICENSE "dist/${package}/"
           cp -R docs benchmarks "dist/${package}/"

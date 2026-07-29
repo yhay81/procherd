@@ -49,6 +49,9 @@ a source checkout with Rust 1.85 or newer:
 cargo install --path . --locked
 ```
 
+See [INSTALL.md](INSTALL.md) for platform-specific, checksum- and
+provenance-verified native installation, updating, and removal.
+
 Generate completion scripts with `procherd completions bash` (also `zsh`,
 `fish`, `powershell`, and `elvish`).
 
