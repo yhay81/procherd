@@ -165,6 +165,14 @@ class ReadinessTests(unittest.TestCase):
         codes = {error["code"] for error in verifier.readiness_errors(manifest)}
         self.assertIn("ci-platform", codes)
 
+    def test_ci_run_urls_must_belong_to_this_repository(self) -> None:
+        manifest = ready_manifest()
+        manifest["gates"]["delivery_maintenance"]["ci_window"]["tracks"]["linux"][
+            0
+        ]["url"] = "https://github.com/yhay81/other/actions/runs/100000"
+        with self.assertRaisesRegex(verifier.EvidenceError, "GitHub Actions run"):
+            verifier.validate_structure(manifest)
+
     def test_duplicate_adopters_do_not_satisfy_the_gate(self) -> None:
         manifest = ready_manifest()
         manifest["gates"]["adoption"]["adopters"][2]["name"] = " studio alpha "

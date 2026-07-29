@@ -74,6 +74,10 @@ SEMVER_RE = re.compile(
     rf"(?:-{PRERELEASE_IDENTIFIER}(?:\.{PRERELEASE_IDENTIFIER})*)?"
     r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
 )
+RUN_URL_RE = re.compile(
+    rf"^https://github\.com/yhay81/{re.escape(PROJECT)}/actions/runs/[1-9][0-9]*"
+    r"(?:/job/[1-9][0-9]*)?$"
+)
 
 
 class EvidenceError(ValueError):
@@ -169,6 +173,15 @@ def _reference_item(value: Any, path: str) -> dict[str, str]:
     _string(item["label"], f"{path}.label")
     _https_url(item["url"], f"{path}.url")
     return item
+
+
+def _run_url(value: Any, path: str) -> str:
+    text = _https_url(value, path)
+    if not RUN_URL_RE.fullmatch(text):
+        raise EvidenceError(
+            f"{path} must be a GitHub Actions run or job URL for yhay81/{PROJECT}"
+        )
+    return text
 
 
 def _reference_list(value: Any, path: str) -> list[dict[str, str]]:
@@ -277,7 +290,7 @@ def _ci_window(value: Any, path: str) -> None:
             run_date = _date(run["date"], f"{item_path}.date")
             if run_date is not None:
                 dates.append(run_date)
-            _https_url(run["url"], f"{item_path}.url")
+            _run_url(run["url"], f"{item_path}.url")
         if len(dates) != len(set(dates)):
             raise EvidenceError(f"{run_path} must not contain duplicate dates")
 
