@@ -2,10 +2,6 @@ name: ClusterFuzzLite PR fuzzing
 
 on:
   pull_request:
-    paths:
-      - "**"
-      - "!**/*.md"
-      - "!docs/**"
   workflow_dispatch:
 
 permissions: {}
