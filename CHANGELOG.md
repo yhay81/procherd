@@ -6,6 +6,11 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Added platform-specific, checksum- and provenance-verified native
+  installation, update, and removal guidance.
+
 ## [0.3.0] - 2026-07-29
 
 ### Compatibility
