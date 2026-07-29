@@ -15,7 +15,34 @@ body:
     attributes:
       label: ProcHerd version
       description: Prefer the exact output of `procherd --version`.
-      placeholder: procherd 0.2.0
+      placeholder: procherd 0.3.0
+    validations:
+      required: true
+  - type: dropdown
+    id: relationship
+    attributes:
+      label: Relationship to the project
+      description: This separates independent adoption from maintainer self-evaluation.
+      options:
+        - Independent user or team
+        - Non-maintainer contributor
+        - Maintainer or project-affiliated evaluation
+    validations:
+      required: true
+  - type: input
+    id: first_use_date
+    attributes:
+      label: First use date
+      description: Use YYYY-MM-DD, or note that the date is approximate.
+      placeholder: "2026-07-29"
+    validations:
+      required: true
+  - type: input
+    id: latest_use_date
+    attributes:
+      label: Latest use date
+      description: Use the first-use date for a one-off evaluation. Repeat-use credit requires observations at least 30 days apart.
+      placeholder: "2026-07-29"
     validations:
       required: true
   - type: input
@@ -71,6 +98,16 @@ body:
         - Yes, with the public name given here
         - Yes, only as anonymized or aggregate evidence
         - No, feedback only
+    validations:
+      required: true
+  - type: dropdown
+    id: follow_up_permission
+    attributes:
+      label: Follow-up permission
+      description: May maintainers ask for a repeat-use update in this public issue?
+      options:
+        - "Yes"
+        - "No"
     validations:
       required: true
   - type: checkboxes
