@@ -56,6 +56,13 @@ request. `has_more` says that more retained records currently exist.
 durable run state. A terminal result can still be read after the supervisor
 has exited.
 
+The retention limit does not omit bytes from the final per-stream SHA-256.
+Readers use a fixed-capacity handoff queue, so sustained output can receive
+bounded pipe backpressure while the supervisor hashes every byte. Lifecycle
+checks run between fixed-size drain batches. A run becomes terminal only after
+both stream readers close; failure to close within the drain bound produces the
+operational `log_drain_timeout` state instead of a successful partial digest.
+
 ## Errors and exit codes
 
 With JSON or NDJSON formatting, errors are emitted on stderr as

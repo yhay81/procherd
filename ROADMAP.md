@@ -90,8 +90,9 @@ for process ownership, lease exclusivity, bounded logs, or real use.
   runner.
 - Status, wait-on-completed-run, bounded logs, leases, and list operations
   remain below 250 ms p95 on the published 1,000-run store corpus.
-- Each idle supervisor remains below 128 MiB peak resident memory, and retained
-  log storage never exceeds its configured byte bound plus documented constant
+- Each idle supervisor and each supervisor draining the published 256 MiB log
+  pressure fixture remains below 128 MiB peak resident memory. Retained log
+  storage never exceeds its configured byte bound plus documented constant
   record metadata.
 - Runtime, readiness, probe, log, stop-grace, list, and GC work never exceed
   configured bounds without an explicit structured state.
