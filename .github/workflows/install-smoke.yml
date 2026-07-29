@@ -1,0 +1,78 @@
+name: Published installation smoke
+
+on:
+  schedule:
+    - cron: "37 3 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: published-install-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  install:
+    name: Install (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    permissions:
+      attestations: read # Verify GitHub artifact attestations.
+      contents: read # Check out source and download public release assets.
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - macos-latest
+          - macos-15-intel
+          - windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run documented installation
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          install_home="${RUNNER_TEMP}/install-home"
+          work_dir="${RUNNER_TEMP}/install-work"
+          mkdir -p "${install_home}" "${work_dir}"
+          (
+            cd "${work_dir}"
+            awk '/^```sh$/ { capture = 1; next } /^```$/ && capture { exit } capture { print }' \
+              "${GITHUB_WORKSPACE}/INSTALL.md" |
+              HOME="${install_home}" sh -eu
+          )
+          binary="${GITHUB_REPOSITORY##*/}"
+          "${install_home}/.local/bin/${binary}" --version
+      - name: Run documented installation
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $lines = Get-Content (Join-Path $env:GITHUB_WORKSPACE "INSTALL.md")
+          $start = [Array]::IndexOf($lines, '```powershell')
+          if ($start -lt 0) { throw "PowerShell install block not found" }
+          $end = -1
+          for ($index = $start + 1; $index -lt $lines.Count; $index++) {
+            if ($lines[$index] -eq '```') { $end = $index; break }
+          }
+          if ($end -le $start + 1) { throw "PowerShell install block is empty" }
+          $scriptPath = Join-Path $env:RUNNER_TEMP "documented-install.ps1"
+          $lines[($start + 1)..($end - 1)] |
+            Set-Content -LiteralPath $scriptPath -Encoding utf8
+          $workDir = Join-Path $env:RUNNER_TEMP "install-work"
+          New-Item -ItemType Directory -Force $workDir | Out-Null
+          Push-Location $workDir
+          try { & $scriptPath } finally { Pop-Location }
+          $binary = $env:GITHUB_REPOSITORY.Split('/')[-1]
+          $installed = Join-Path $HOME ".local\bin\$binary.exe"
+          if (-not (Test-Path $installed)) { throw "Installed binary not found" }
+          & $installed --version
+          if ($LASTEXITCODE -ne 0) { throw "Installed binary failed" }
