@@ -190,6 +190,13 @@ pub fn read_logs(
                     )));
                 }
                 if record.cursor >= state.logs.next_cursor {
+                    if !state.status.is_terminal() {
+                        // Log records are flushed before the supervisor's
+                        // periodic state snapshot. A live reader must stop at
+                        // the durable cursor boundary instead of treating a
+                        // valid, not-yet-committed record as corruption.
+                        break;
+                    }
                     return Err(AppError::integrity(format!(
                         "log cursor {} is outside the durable summary",
                         record.cursor
@@ -253,10 +260,11 @@ pub fn decode_record(record: &LogRecord) -> Result<Vec<u8>, AppError> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::TrySendError;
+    use std::{fs, sync::mpsc::TrySendError};
 
-    use super::{LOG_CHANNEL_CAPACITY, LogChunk, channel};
-    use crate::model::LogStream;
+    use super::{LOG_CHANNEL_CAPACITY, LogChunk, channel, read_logs};
+    use crate::model::{LogStream, RunState, RunStatus};
+    use tempfile::tempdir;
 
     #[test]
     fn capture_channel_applies_fixed_backpressure() {
@@ -276,5 +284,42 @@ mod tests {
             }),
             Err(TrySendError::Full(_))
         ));
+    }
+
+    #[test]
+    fn live_reader_stops_at_the_durable_snapshot_boundary() {
+        let sandbox = tempdir().unwrap();
+        fs::write(
+            sandbox.path().join("logs.ndjson"),
+            include_bytes!(
+                "../tests/fixtures/contracts/v0.1/run_01J00000000000000000000000/logs.ndjson"
+            ),
+        )
+        .unwrap();
+        let mut state: RunState = serde_json::from_slice(include_bytes!(
+            "../tests/fixtures/contracts/v0.1/run_01J00000000000000000000000/state.json"
+        ))
+        .unwrap();
+        state.status = RunStatus::Running;
+        state.logs.next_cursor = 1;
+        state.logs.captured_bytes = 0;
+
+        let snapshot = read_logs(sandbox.path(), &state, 0, 10, None).unwrap();
+        assert!(snapshot.records.is_empty());
+        assert_eq!(snapshot.next_after_cursor, 0);
+        assert!(!snapshot.has_more);
+        assert!(!snapshot.terminal);
+
+        state.logs.next_cursor = 2;
+        state.logs.captured_bytes = 6;
+        let committed = read_logs(sandbox.path(), &state, 0, 10, None).unwrap();
+        assert_eq!(committed.records.len(), 1);
+        assert_eq!(committed.next_after_cursor, 1);
+
+        state.status = RunStatus::Exited;
+        state.logs.next_cursor = 1;
+        state.logs.captured_bytes = 0;
+        let error = read_logs(sandbox.path(), &state, 0, 10, None).unwrap_err();
+        assert!(error.to_string().contains("outside the durable summary"));
     }
 }

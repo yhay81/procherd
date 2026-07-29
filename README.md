@@ -116,6 +116,9 @@ procherd --format ndjson logs run_01J... --stream stderr
 Use `next_after_cursor` for the next page. Capture stops at
 `--max-log-bytes` (16 MiB by default); the supervisor continues draining child
 pipes through a fixed-capacity in-memory queue and reports `dropped_bytes`.
+Live reads expose only records whose cursors are present in the same durable
+state snapshot; poll again to observe records that were flushed while that
+snapshot was being committed.
 Final SHA-256 digests cover the complete stdout and stderr streams, including
 bytes not retained as records. If output arrives faster than it can be hashed,
 bounded pipe backpressure can temporarily throttle the child instead of

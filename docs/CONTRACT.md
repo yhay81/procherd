@@ -14,8 +14,11 @@ opaque resume positions rather than byte offsets.
 
 Durable v1 run documents and log records use closed shapes. Readers reject
 unknown fields, unsupported schema identifiers, cross-run identity, malformed
-Base64, byte-count mismatches, non-monotonic cursors, cursors outside the
-durable summary, and incomplete terminal records as integrity failures.
+Base64, byte-count mismatches, non-monotonic cursors, terminal cursors outside
+the durable summary, and incomplete terminal records as integrity failures.
+During a live run, a complete log record can reach disk just before its cursor
+is committed to `state.json`; readers stop at that snapshot boundary and expose
+the record on a later poll.
 Fields explicitly documented with defaults remain readable when omitted. The
 versioned fixtures and declared mutations in
 [`tests/fixtures/contracts/`](../tests/fixtures/contracts/README.md) exercise
@@ -55,6 +58,11 @@ request. `has_more` says that more retained records currently exist.
 `captured_bytes` and `dropped_bytes` are cumulative. `terminal` describes the
 durable run state. A terminal result can still be read after the supervisor
 has exited.
+
+Each live response is one durable snapshot. Records already flushed beyond
+that snapshot's `next_cursor` are not returned and do not set `has_more`; a
+later request observes them after the supervisor commits the matching summary.
+Terminal snapshots remain strict and reject any record outside their summary.
 
 The retention limit does not omit bytes from the final per-stream SHA-256.
 Readers use a fixed-capacity handoff queue, so sustained output can receive
