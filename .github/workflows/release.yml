@@ -108,7 +108,7 @@ jobs:
           Compress-Archive -Path "dist/$package" -DestinationPath "dist/$package.zip"
       - name: Attest build provenance
         id: provenance
-        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
         with:
           subject-path: dist/*.${{ matrix.archive }}
       - name: Stage offline provenance bundle
@@ -164,7 +164,7 @@ jobs:
           sha256sum ./*.tar.gz ./*.zip ./*.cdx.json \
             ./*.intoto.jsonl > SHA256SUMS
       - name: Attest release SBOM
-        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4
         with:
           subject-path: |
             artifacts/*.tar.gz
