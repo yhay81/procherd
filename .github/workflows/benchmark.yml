@@ -1,6 +1,7 @@
 name: Benchmark
 
 on:
+  pull_request:
   schedule:
     - cron: "53 5 * * 2"
   workflow_dispatch:
@@ -8,22 +9,50 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: benchmark-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    name: Enforce performance thresholds
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Rust
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
-      - name: Capture raw benchmark
-        run: benchmarks/run.sh benchmark-results.json
-      - name: Upload raw measurements
+      - name: Test benchmark evaluator
+        run: python3 -m unittest benchmarks/test_evaluate.py
+      - name: Warm benchmark fixture and code paths
+        run: benchmarks/run.sh /tmp/procherd-benchmark-warmup.json
+      - name: Capture 20 raw benchmark samples
+        run: |
+          mkdir -p benchmark-samples
+          for sample in $(seq -w 1 20); do
+            benchmarks/run.sh "benchmark-samples/sample-${sample}.json"
+          done
+      - name: Enforce v1.0 performance thresholds
+        run: |
+          baseline_args=()
+          if [[ -f benchmarks/baseline-ubuntu24.json ]]; then
+            baseline_args=(--baseline benchmarks/baseline-ubuntu24.json)
+          fi
+          python3 benchmarks/evaluate.py \
+            --config benchmarks/thresholds.json \
+            "${baseline_args[@]}" \
+            --output benchmark-results.json \
+            benchmark-samples/sample-*.json
+      - name: Upload raw measurements and evaluation
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: procherd-benchmark-${{ github.run_id }}
-          path: benchmark-results.json
+          path: |
+            benchmark-results.json
+            benchmark-samples/
           if-no-files-found: error
           retention-days: 90

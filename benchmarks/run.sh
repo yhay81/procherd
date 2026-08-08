@@ -312,7 +312,7 @@ jq -n \
       log_pressure_supervisor_high_water_mib:
         ($pressure_supervisor_hwm_kib / 1024)
     },
-    threshold_status: "observation_only"
+    threshold_status: "raw_sample"
   }' >"${result_path}"
 
 jq -e '
