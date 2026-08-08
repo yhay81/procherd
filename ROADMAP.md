@@ -125,3 +125,11 @@ for process ownership, lease exclusivity, bounded logs, or real use.
 
 Maintainer-authored fixtures, automated downloads, stars, and synthetic
 accounts cannot satisfy adoption gates.
+
+The release workflow enforces these criteria for every v1 or later tag with
+the reviewable [v1 evidence manifest](.github/v1-evidence.json). Its verifier
+checks the exact release version, criterion-specific evidence, independent
+review scope and findings, daily evidence for every required 30-day track,
+maintainer continuity, distinct adopters, repeat-use dates, a public
+integration, and a resolved non-maintainer contribution. The manifest remains
+explicitly pending until real evidence satisfies every criterion.

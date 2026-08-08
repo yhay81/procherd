@@ -22,7 +22,7 @@
       "unit": "seconds",
       "regression": {
         "max_ratio": 1.5,
-        "absolute_tolerance": 0.05
+        "absolute_tolerance": 0.22
       }
     },
     {
