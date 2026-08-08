@@ -1,0 +1,139 @@
+{
+  "schema_version": "benchmark.thresholds.v1",
+  "benchmark_schema_version": "procherd.benchmark.v1",
+  "runner": {
+    "os": "Linux",
+    "arch": "x86_64",
+    "image": "ubuntu24"
+  },
+  "warmup_count": 1,
+  "sample_count": 20,
+  "metrics": [
+    {
+      "id": "start_to_running_wall_p95",
+      "description": "Conservative start-to-running control path including the bundled child",
+      "source": {
+        "kind": "measurement_process",
+        "measurement_id": "start_to_running",
+        "field": "wall_seconds"
+      },
+      "statistic": "p95",
+      "maximum": 0.25,
+      "unit": "seconds",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 0.05
+      }
+    },
+    {
+      "id": "status_wall_p95",
+      "description": "Status lookup in the 1,000-run store",
+      "source": {
+        "kind": "measurement_process",
+        "measurement_id": "status_1000_store",
+        "field": "wall_seconds"
+      },
+      "statistic": "p95",
+      "maximum": 0.25,
+      "unit": "seconds",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 0.05
+      }
+    },
+    {
+      "id": "wait_completed_wall_p95",
+      "description": "Wait on a completed run in the 1,000-run store",
+      "source": {
+        "kind": "measurement_process",
+        "measurement_id": "wait_completed_1000_store",
+        "field": "wall_seconds"
+      },
+      "statistic": "p95",
+      "maximum": 0.25,
+      "unit": "seconds",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 0.05
+      }
+    },
+    {
+      "id": "logs_wall_p95",
+      "description": "Bounded log lookup in the 1,000-run store",
+      "source": {
+        "kind": "measurement_process",
+        "measurement_id": "logs_bounded_1000_store",
+        "field": "wall_seconds"
+      },
+      "statistic": "p95",
+      "maximum": 0.25,
+      "unit": "seconds",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 0.05
+      }
+    },
+    {
+      "id": "leases_wall_p95",
+      "description": "Lease lookup in the 1,000-run store",
+      "source": {
+        "kind": "measurement_process",
+        "measurement_id": "leases_1000_store",
+        "field": "wall_seconds"
+      },
+      "statistic": "p95",
+      "maximum": 0.25,
+      "unit": "seconds",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 0.05
+      }
+    },
+    {
+      "id": "list_wall_p95",
+      "description": "Complete listing of the 1,000-run store",
+      "source": {
+        "kind": "measurement_process",
+        "measurement_id": "list_1000_store",
+        "field": "wall_seconds"
+      },
+      "statistic": "p95",
+      "maximum": 0.25,
+      "unit": "seconds",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 0.05
+      }
+    },
+    {
+      "id": "idle_supervisor_high_water_max",
+      "description": "Maximum high-water RSS of the idle supervisor",
+      "source": {
+        "kind": "derived",
+        "field": "idle_supervisor_high_water_mib"
+      },
+      "statistic": "max",
+      "maximum": 128.0,
+      "unit": "MiB",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 16.0
+      }
+    },
+    {
+      "id": "control_process_peak_rss_max",
+      "description": "Maximum peak RSS across bounded control operations",
+      "source": {
+        "kind": "derived",
+        "field": "max_control_process_peak_rss_mib"
+      },
+      "statistic": "max",
+      "maximum": 256.0,
+      "unit": "MiB",
+      "regression": {
+        "max_ratio": 1.5,
+        "absolute_tolerance": 16.0
+      }
+    }
+  ]
+}
