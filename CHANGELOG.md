@@ -8,6 +8,9 @@ semantic versioning.
 
 ### Fixed
 
+- Made live log pagination snapshot-consistent when a complete record reaches
+  disk before its cursor is committed to durable state. Terminal runs continue
+  to reject records outside the final summary as integrity failures.
 - Bounded the stdout/stderr handoff queue and per-tick drain work so log floods
   cannot grow supervisor memory with total output or starve stop and runtime
   checks. Terminal state now fails explicitly if complete-stream digest capture

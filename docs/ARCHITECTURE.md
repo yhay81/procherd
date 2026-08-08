@@ -88,6 +88,12 @@ the supervisor can hash it. After process exit, terminal state is persisted only
 after both readers close; a bounded drain timeout becomes an explicit
 `log_drain_timeout` supervisor failure rather than a successful partial digest.
 
+Records are flushed before the periodic durable state snapshot. Live readers
+therefore stop at the snapshot's committed cursor boundary and retry on their
+next poll; they do not misclassify a fully written but not-yet-committed record
+as corruption. Terminal readers still require every record to fall within the
+final durable summary.
+
 ## Resource coordination
 
 Port allocation uses a state-root registry protected by an OS file lock.
