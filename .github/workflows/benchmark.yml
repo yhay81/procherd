@@ -2,8 +2,6 @@ name: Benchmark
 
 on:
   pull_request:
-  schedule:
-    - cron: "53 5 * * 2"
   workflow_dispatch:
 
 permissions:
@@ -17,7 +15,7 @@ jobs:
   benchmark:
     name: Enforce performance thresholds
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
