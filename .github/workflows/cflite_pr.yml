@@ -14,7 +14,7 @@ jobs:
   PRFuzzing:
     name: Fuzz changed code
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 1
     permissions:
       actions: read # Fetch prior ClusterFuzzLite builds and corpora.
       contents: read

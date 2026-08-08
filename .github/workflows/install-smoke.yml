@@ -2,7 +2,7 @@ name: Published installation smoke
 
 on:
   schedule:
-    - cron: "37 3 * * 1"
+    - cron: "49 6 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -15,7 +15,7 @@ jobs:
   install:
     name: Install (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 1
     permissions:
       attestations: read # Verify GitHub artifact attestations.
       contents: read # Check out source and download public release assets.

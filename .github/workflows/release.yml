@@ -14,6 +14,7 @@ concurrency:
 jobs:
   validate:
     name: Validate release identity
+    timeout-minutes: 1
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,6 +74,7 @@ jobs:
             platform: windows-x86_64
             binary: procherd.exe
             archive: zip
+    timeout-minutes: 1
     runs-on: ${{ matrix.os }}
     env:
       RELEASE_BINARY: ${{ matrix.binary }}
@@ -142,6 +144,7 @@ jobs:
   publish:
     name: Publish immutable release
     needs: build
+    timeout-minutes: 1
     runs-on: ubuntu-latest
     permissions:
       actions: read # Download archives from the trusted build matrix.

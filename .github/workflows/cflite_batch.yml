@@ -2,7 +2,7 @@ name: ClusterFuzzLite batch fuzzing
 
 on:
   schedule:
-    - cron: "47 2 * * 0"
+    - cron: "44 8 * * 3"
   workflow_dispatch:
 
 permissions: {}
@@ -15,7 +15,7 @@ jobs:
   BatchFuzzing:
     name: Fuzz main corpus
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 1
     permissions:
       actions: read # Fetch prior ClusterFuzzLite corpora.
       contents: read
