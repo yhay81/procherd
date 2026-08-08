@@ -23,8 +23,10 @@ fi
 temp_dir="$(mktemp -d)"
 store_1000="${temp_dir}/store-1000"
 start_store="${temp_dir}/start-store"
+pressure_store="${temp_dir}/pressure-store"
 fixture_metadata="${temp_dir}/fixture.json"
 start_run=""
+pressure_run=""
 
 cleanup() {
   if [[ -n "${start_run}" && -d "${start_store}" && -x "${binary}" ]]; then
@@ -32,6 +34,12 @@ cleanup() {
       --state-dir "${start_store}" \
       --format json \
       stop "${start_run}" --grace 1s >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${pressure_run}" && -d "${pressure_store}" && -x "${binary}" ]]; then
+    "${binary}" \
+      --state-dir "${pressure_store}" \
+      --format json \
+      stop "${pressure_run}" --grace 1s >/dev/null 2>&1 || true
   fi
   rm -rf "${temp_dir}"
 }
@@ -86,6 +94,57 @@ test "${supervisor_hwm_kib}" -gt 0
   stop "${start_run}" --grace 1s >/dev/null
 start_run=""
 
+pressure_bytes=$((256 * 1024 * 1024))
+pressure_supervisor_hwm_limit_kib=$((128 * 1024))
+pressure_stdout_sha256="8531f9720e3f5ce15fde831a4c677c501b3ef320d4f156c1248299cd9955392d"
+pressure_start_output="${temp_dir}/pressure.start.json"
+pressure_stop_output="${temp_dir}/pressure.stop.json"
+"${binary}" \
+  --state-dir "${pressure_store}" \
+  --format json \
+  start \
+  --max-log-bytes 1 \
+  --max-runtime 30s \
+  --runtime-grace 1s \
+  -- \
+  "${binary}" __fixture flood \
+    --bytes "${pressure_bytes}" \
+    --hold-ms 10000 >"${pressure_start_output}"
+pressure_run="$(jq -r .run.run_id "${pressure_start_output}")"
+pressure_supervisor_pid="$(jq -r .run.process.supervisor_pid "${pressure_start_output}")"
+pressure_observed_bytes=0
+for ((attempt = 0; attempt < 200; attempt++)); do
+  pressure_status="$(
+    "${binary}" \
+      --state-dir "${pressure_store}" \
+      --format json \
+      status "${pressure_run}"
+  )"
+  pressure_observed_bytes="$(
+    jq -r '.run.logs.captured_bytes + .run.logs.dropped_bytes' \
+      <<<"${pressure_status}"
+  )"
+  if [[ "${pressure_observed_bytes}" -eq "${pressure_bytes}" ]]; then
+    break
+  fi
+  sleep 0.05
+done
+test "${pressure_observed_bytes}" -eq "${pressure_bytes}"
+pressure_supervisor_rss_kib="$(
+  awk '/^VmRSS:/ { print $2 }' "/proc/${pressure_supervisor_pid}/status"
+)"
+pressure_supervisor_hwm_kib="$(
+  awk '/^VmHWM:/ { print $2 }' "/proc/${pressure_supervisor_pid}/status"
+)"
+test "${pressure_supervisor_rss_kib}" -gt 0
+test "${pressure_supervisor_hwm_kib}" -gt 0
+test "${pressure_supervisor_hwm_kib}" -le "${pressure_supervisor_hwm_limit_kib}"
+"${binary}" \
+  --state-dir "${pressure_store}" \
+  --format json \
+  stop "${pressure_run}" --grace 1s >"${pressure_stop_output}"
+pressure_run=""
+
 status_metrics="${temp_dir}/status.metrics.json"
 status_output="${temp_dir}/status.output.json"
 wait_metrics="${temp_dir}/wait.metrics.json"
@@ -120,8 +179,14 @@ jq -n \
   --arg runner_arch "$(uname -m)" \
   --arg runner_image "${ImageOS:-unknown}" \
   --arg runner_image_version "${ImageVersion:-unknown}" \
+  --arg pressure_stdout_sha256 "${pressure_stdout_sha256}" \
   --argjson supervisor_rss_kib "${supervisor_rss_kib}" \
   --argjson supervisor_hwm_kib "${supervisor_hwm_kib}" \
+  --argjson pressure_bytes "${pressure_bytes}" \
+  --argjson pressure_supervisor_rss_kib "${pressure_supervisor_rss_kib}" \
+  --argjson pressure_supervisor_hwm_kib "${pressure_supervisor_hwm_kib}" \
+  --argjson pressure_supervisor_hwm_limit_kib \
+    "${pressure_supervisor_hwm_limit_kib}" \
   --argjson start_output_bytes "$(stat -c '%s' "${start_output}")" \
   --argjson status_output_bytes "$(stat -c '%s' "${status_output}")" \
   --argjson wait_output_bytes "$(stat -c '%s' "${wait_output}")" \
@@ -131,6 +196,7 @@ jq -n \
   --slurpfile fixture "${fixture_metadata}" \
   --slurpfile start_metrics "${start_metrics}" \
   --slurpfile start_output "${start_output}" \
+  --slurpfile pressure_stop_output "${pressure_stop_output}" \
   --slurpfile status_metrics "${status_metrics}" \
   --slurpfile status_output "${status_output}" \
   --slurpfile wait_metrics "${wait_metrics}" \
@@ -155,6 +221,19 @@ jq -n \
     idle_supervisor: {
       rss_kib: $supervisor_rss_kib,
       high_water_kib: $supervisor_hwm_kib
+    },
+    log_pressure_supervisor: {
+      input_bytes: $pressure_bytes,
+      rss_kib: $pressure_supervisor_rss_kib,
+      high_water_kib: $pressure_supervisor_hwm_kib,
+      high_water_limit_kib: $pressure_supervisor_hwm_limit_kib,
+      safety_threshold_status: "enforced",
+      captured_bytes: $pressure_stop_output[0].run.logs.captured_bytes,
+      dropped_bytes: $pressure_stop_output[0].run.logs.dropped_bytes,
+      stdout_sha256: $pressure_stop_output[0].run.logs.stdout_sha256,
+      expected_stdout_sha256: $pressure_stdout_sha256,
+      final_status: $pressure_stop_output[0].run.status,
+      supervisor_active: $pressure_stop_output[0].run.supervisor_active
     },
     measurements: [
       {
@@ -229,7 +308,9 @@ jq -n \
           $leases_metrics[0].max_rss_kib,
           $list_metrics[0].max_rss_kib
         ] | max | . / 1024),
-      idle_supervisor_high_water_mib: ($supervisor_hwm_kib / 1024)
+      idle_supervisor_high_water_mib: ($supervisor_hwm_kib / 1024),
+      log_pressure_supervisor_high_water_mib:
+        ($pressure_supervisor_hwm_kib / 1024)
     },
     threshold_status: "raw_sample"
   }' >"${result_path}"
@@ -239,6 +320,18 @@ jq -e '
   and .fixture.runs == 1000
   and .idle_supervisor.rss_kib > 0
   and .idle_supervisor.high_water_kib > 0
+  and .log_pressure_supervisor.input_bytes == 268435456
+  and .log_pressure_supervisor.rss_kib > 0
+  and .log_pressure_supervisor.high_water_kib > 0
+  and .log_pressure_supervisor.high_water_kib
+    <= .log_pressure_supervisor.high_water_limit_kib
+  and .log_pressure_supervisor.safety_threshold_status == "enforced"
+  and .log_pressure_supervisor.captured_bytes == 1
+  and .log_pressure_supervisor.dropped_bytes == 268435455
+  and .log_pressure_supervisor.stdout_sha256
+    == .log_pressure_supervisor.expected_stdout_sha256
+  and .log_pressure_supervisor.final_status == "stopped"
+  and (.log_pressure_supervisor.supervisor_active | not)
   and all(
     .measurements[];
     .process.exit_code == 0

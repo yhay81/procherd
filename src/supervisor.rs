@@ -27,7 +27,8 @@ use crate::{
 };
 
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
-const LOG_DRAIN_LIMIT: Duration = Duration::from_millis(500);
+const LOG_DRAIN_LIMIT: Duration = Duration::from_secs(2);
+pub(crate) const LOG_DRAIN_BATCH_CHUNKS: usize = 64;
 
 pub fn launch(run_dir: &Path) -> Result<(), AppError> {
     let executable = std::env::current_exe().map_err(|error| {
@@ -179,8 +180,8 @@ fn supervise_locked(run_dir: &Path) -> Result<(), AppError> {
     let mut last_state_write = Instant::now();
 
     loop {
-        let mut readiness_changed =
-            drain_available(&receiver, &mut logs, &mut readiness, &mut state)?;
+        let drain = drain_available(&receiver, &mut logs, &mut readiness, &mut state)?;
+        let mut readiness_changed = drain.readiness_changed;
         readiness_changed |= readiness.poll(&mut state.readiness);
         if readiness_changed {
             state.updated_at_ms = now_ms();
@@ -274,7 +275,11 @@ fn supervise_locked(run_dir: &Path) -> Result<(), AppError> {
                     persist_state(run_dir, &state)?;
                     last_state_write = Instant::now();
                 }
-                thread::sleep(POLL_INTERVAL);
+                if drain.saturated {
+                    thread::yield_now();
+                } else {
+                    thread::sleep(POLL_INTERVAL);
+                }
             }
         }
     }
@@ -371,23 +376,25 @@ fn drain_available(
     logs: &mut LogWriter,
     readiness: &mut ReadinessTracker,
     state: &mut RunState,
-) -> Result<bool, AppError> {
+) -> Result<DrainOutcome, AppError> {
     let mut readiness_changed = false;
-    loop {
+    for _ in 0..LOG_DRAIN_BATCH_CHUNKS {
         match receiver.try_recv() {
             Ok(chunk) => {
-                readiness_changed |= readiness.observe_log(
-                    &mut state.readiness,
-                    chunk.stream,
-                    logs.capturable_bytes(&chunk),
-                );
-                logs.record(chunk)?;
+                readiness_changed |= record_chunk(logs, readiness, state, chunk)?;
             }
             Err(TryRecvError::Empty | TryRecvError::Disconnected) => {
-                return Ok(readiness_changed);
+                return Ok(DrainOutcome {
+                    readiness_changed,
+                    saturated: false,
+                });
             }
         }
     }
+    Ok(DrainOutcome {
+        readiness_changed,
+        saturated: true,
+    })
 }
 
 fn drain_until_closed(
@@ -401,22 +408,42 @@ fn drain_until_closed(
     loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {
-            drain_available(receiver, logs, readiness, state)?;
-            return Ok(());
+            return match receiver.try_recv() {
+                Err(TryRecvError::Disconnected) => Ok(()),
+                Ok(_) | Err(TryRecvError::Empty) => Err(AppError::operational(
+                    "log_drain_timeout",
+                    "log capture did not close within the bounded drain period",
+                )),
+            };
         }
         match receiver.recv_timeout(remaining.min(POLL_INTERVAL)) {
             Ok(chunk) => {
-                readiness.observe_log(
-                    &mut state.readiness,
-                    chunk.stream,
-                    logs.capturable_bytes(&chunk),
-                );
-                logs.record(chunk)?;
+                record_chunk(logs, readiness, state, chunk)?;
             }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
         }
     }
+}
+
+struct DrainOutcome {
+    readiness_changed: bool,
+    saturated: bool,
+}
+
+fn record_chunk(
+    logs: &mut LogWriter,
+    readiness: &mut ReadinessTracker,
+    state: &mut RunState,
+    chunk: LogChunk,
+) -> Result<bool, AppError> {
+    let readiness_changed = readiness.observe_log(
+        &mut state.readiness,
+        chunk.stream,
+        logs.capturable_bytes(&chunk),
+    );
+    logs.record(chunk)?;
+    Ok(readiness_changed)
 }
 
 fn persist_state(run_dir: &Path, state: &RunState) -> Result<(), AppError> {

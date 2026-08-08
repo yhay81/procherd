@@ -1,7 +1,8 @@
 # ProcHerd performance baseline
 
 This directory defines and enforces ProcHerd's reproducible v1.0 performance
-thresholds on pull requests and in the weekly scheduled benchmark.
+thresholds on pull requests and in the weekly scheduled benchmark. The harness
+also enforces the 128 MiB log-pressure supervisor safety bound.
 
 ## Workloads
 
@@ -14,9 +15,11 @@ Each raw sample performs untimed build and corpus setup. The workflow discards
 one warm-up and then captures 20 samples, each in this fixed order:
 
 1. start-to-running wall time for a minimal bundled child fixture;
-2. status, wait-on-completed-run, one-record logs, and leases for a
+2. supervisor RSS and high-water RSS while draining a deterministic 256 MiB
+   stream into a one-byte retention budget;
+3. status, wait-on-completed-run, one-record logs, and leases for a
    representative run in the 1,000-run store;
-3. complete list of the 1,000-run store.
+4. complete list of the 1,000-run store.
 
 The start measurement is a conservative end-to-end observation: it includes
 the minimal child spawn even though the v1.0 control-overhead target excludes
@@ -24,7 +27,8 @@ application startup. While that child is idle, Linux `/proc` provides the
 supervisor's current RSS and high-water RSS before the harness stops it.
 
 Raw results record GNU `time` wall time and peak resident memory for each CLI
-process, output bytes, supervisor memory, fixture counts and digest, runner
+process, output bytes, idle and log-pressure supervisor memory, exact log
+capture/drop accounting and digest evidence, fixture counts and digest, runner
 identity, semantic result evidence, and the exact ProcHerd commit.
 
 ## Enforced thresholds
