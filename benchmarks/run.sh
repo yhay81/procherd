@@ -5,7 +5,7 @@ export LC_ALL=C
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 result_path="${1:-${root_dir}/benchmark-results.json}"
-binary="${root_dir}/target/release/procherd"
+binary="${BENCHMARK_BINARY:-${root_dir}/target/release/procherd}"
 generator="${root_dir}/benchmarks/generate_store.py"
 
 for dependency in awk cargo git grep jq python3 stat timeout uname; do
@@ -46,7 +46,10 @@ cleanup() {
 trap cleanup EXIT
 
 cd "${root_dir}"
-cargo build --release --locked
+if [[ -z "${BENCHMARK_BINARY:-}" ]]; then
+  cargo build --release --locked
+fi
+test -x "${binary}"
 python3 "${generator}" \
   --runs 1000 \
   --output "${store_1000}" >"${fixture_metadata}"
