@@ -69,5 +69,5 @@ A weekly OpenSSF Scorecard analysis publishes authenticated results and uploads
 SARIF findings to GitHub code scanning. CodeQL default setup analyzes Rust and
 workflow sources with extended security queries. The production
 persisted-state parser and identifier validation
-can be fuzzed locally during review. ClusterFuzzLite is scheduled to run a
-weekly AddressSanitizer batch. See [FUZZING.md](FUZZING.md).
+can be fuzzed locally during review. Maintainers can run the AddressSanitizer
+batch on demand. See [FUZZING.md](FUZZING.md).
